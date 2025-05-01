@@ -19,7 +19,7 @@ class Parameters:
     N0: int = 10
     growth_rate: float = 0.005046761847658182
     max_growth_rate_multiplier: Union[int, float] = 5
-    capacities: Union[int, List[int]] = field(default_factory=lambda: [1e8])
+    capacities: Union[int, List[int]] = field(default_factory=lambda: [1e7])
     nsites: int = 1
     epsilon: float = 1e-8
     
@@ -81,7 +81,7 @@ class Parameters:
         if self.nsites >= 15:
             warnings.warn("Extremely large number of sites. Consider choosing a smaller value.")
 
-        self.process_genome()
+        self._process_genome()
 
         if self.growth_rate <= 0:
             raise ValueError("growth_rate must be greater than 0.")
@@ -105,7 +105,7 @@ class Parameters:
         if self.log_path is None:
             self.log_path = os.path.join(self.out_dir, 'sim.log')
     
-    def process_genome(self):
+    def _process_genome(self):
         if self.chrom_names is not None:
             for chrname in self.chrom_names:
                 if 'X' in chrname or 'Y' in chrname:

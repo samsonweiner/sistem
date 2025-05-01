@@ -1,21 +1,30 @@
 import copy
 import numpy as np
+from typing import Optional
 
+from sistem.genome.genome import Genome
+from sistem.selection.base_library import BaseLibrary, Attributes
 from sistem.lineage.mutation import CNA, SNV
 from sistem.lineage.tree import Node
 
 class Cell(Node):
     gen = None
 
-    def __init__(self, birth_gen=None, genome=None, library=None, attributes=None, site=0, **kwargs):
+    def __init__(
+        self, 
+        birth_gen: Optional[int] = None, 
+        genome: Optional[Genome] = None, 
+        library: Optional[BaseLibrary] = None, 
+        attributes: Optional[Attributes] = None, 
+        site: int = 0, 
+        **kwargs
+    ):
         self.birth_gen = birth_gen
         self.genome = genome
         self.library = library
         self.attributes = attributes
         self.site = site
         self.events = []
-        #self.npass_CNA = 0
-        #self.npass_SNV = 0
         self.birth_counts = {}
         super().__init__(**kwargs)
     
@@ -102,7 +111,12 @@ class Cell(Node):
         return self.library.get_passenger_start_regions(self, chromosome, size)
 
 class Clone(Cell):
-    def __init__(self, popsize=1, fitness=None, **kwargs):
+    def __init__(
+        self, 
+        popsize: int = 1, 
+        fitness: Optional[float] = None, 
+        **kwargs
+    ):
         super().__init__(**kwargs)
         self.popsize = popsize
         self.death_gen = None
@@ -141,7 +155,7 @@ class Clone(Cell):
             self.attributes = None
 
     def get_ploidy(self):
-        return self.genome.nregions / self.library.ndiploid_regions
+        return self.genome.nregions / self.library._ndiploid_regions
 
     def is_viable(self):
         return self.library.check_viability(self)

@@ -1,15 +1,12 @@
 import os
 import subprocess
 import numpy as np
-import pickle as pkl
-from itertools import repeat
 import multiprocessing
-from collections import Counter
 from Bio import SeqIO
 from scipy.stats import poisson
 from typing import Optional
 
-from sistem.utilities.utilities import iter_by_chunk, get_reg_id, sort_chrom_names
+from sistem.utilities.utilities import iter_by_chunk, get_reg_id, sort_chrom_names, check_dependencies
 from sistem.data.utils import gen_coverage, get_alpha_beta, bin_region_readcounts, get_mutated_basepairs, count_region_CNs
 from sistem.data.sequence import build_cell_ref
 from sistem.data.profiles import save_singlecell_readcounts, save_clonal_readcounts
@@ -118,8 +115,10 @@ def gen_reads(
     lorenz_x: float = 0.5
 ):
     params = fill_params(params, out_dir=out_dir, coverage=coverage, bin_size=bin_size, read_len=read_len, lorenz_y=lorenz_y, num_processors=num_processors)
-    readcounts = gen_readcounts_singlecell(tree, params=params)
 
+    check_dependencies(['samtools', 'dwgsim'])
+
+    readcounts = gen_readcounts_singlecell(tree, params=params)
     leaves = list(tree.iter_leaves())
 
     if params.num_processors == 1:
@@ -127,7 +126,7 @@ def gen_reads(
             gen_reads_cell(cell, readcounts[cell], params.out_dir, params.ref, params.alt_ref, params.read_len, params.seq_error)
     else:
         with multiprocessing.Pool(processes=params.num_processors) as pool:
-            args = [(cell, readcounts[cell], params.out_dir, params.ref, params.alt_ref, params.read_len, params.seq_error)]
+            args = [(cell, readcounts[cell], params.out_dir, params.ref, params.alt_ref, params.read_len, params.seq_error) for cell in leaves]
             pool.starmap(gen_reads_cell, args)
             
 def gen_readcounts_singlecell(
@@ -186,8 +185,7 @@ def gen_readcounts_bulk(
     tree: Tree,
     params: Optional[Parameters] = None,
     out_dir: Optional[str] = None,
-    coverage: Optional[float] = None,
-    epsilon: float = 1e-8
+    coverage: Optional[float] = None
 ):
     params = fill_params(params, out_dir=out_dir, coverage=coverage)
     chrom_lens = tree.root.library.chrom_lens
@@ -247,7 +245,7 @@ def gen_readcounts_bulk(
                                 if p in chromosome.SNVs[q]:
                                     x_ref -= 1
                                     x_alt += 1
-                fraction += (prop * (x_alt / (x_ref + x_alt + epsilon)))
+                fraction += (prop * (x_alt / (x_ref + x_alt + 1e-8)))
                 CNs.append(x_ref + x_alt)
 
             scale = np.mean(CNs) / 2

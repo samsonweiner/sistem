@@ -49,11 +49,10 @@ class BaseLibrary(ABC):
         self.min_ploidy = params.min_ploidy
 
         self.delta = {chrname: [] for chrname in self.regions.keys()}
-        self.lam = {chrname: [] for chrname in self.regions.keys()}
         self.base_fit = 0
         self.max_fit = 0
         
-        self.ndiploid_regions = sum(list(self.regions.values()))
+        self._ndiploid_regions = sum(list(self.regions.values()))
         max_region_id = max(self.regions.values()) 
         init_mbit(max_region_id.bit_length())
 

@@ -69,7 +69,7 @@ class BaseRegionLibrary(BaseLibrary):
 
         driv_counts = {chrname: {r: 2 for r in self.drivers[chrname]} for chrname in self.regions}
         cur_fit = self.base_fit
-        start_nregions = self.ndiploid_regions
+        start_nregions = self._ndiploid_regions
         cur_nregions = start_nregions*2
         count = 0
         while count < self.max_distinct_driv and (len(OG) > 0 or len(TSG) > 0):
@@ -314,17 +314,6 @@ class FittedRegionLibrary(BaseRegionLibrary):
     '''
     Initialize regions to be OG, TSG, or NEU from file.
     '''
-    def initialize(self, input_file, region_len):
-        with open(input_file) as f:
-            for line in f:
-                info = line.strip().split('\t')
-                chrname, start, end, s = info[0], int(info[1]), int(info[2]), float(info[3])
-                rstart, rend = int(np.floor(start / region_len)), int(np.ceil(end / region_len))
-                for r in range(rstart, rend):
-                    self.delta[chrname].append(s)
-                if s != 0:
-                    self.drivers[chrname].extend([r for r in range(rstart, rend)])
-    
     def initialize(
         self, 
         filepath: Optional[str] = None,

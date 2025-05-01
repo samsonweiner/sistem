@@ -18,15 +18,15 @@ class BaseArmLibrary(BaseLibrary):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.arm_sizes = {}
+        self._arm_sizes = {}
         for chrname in self.regions.keys():
             if isinstance(self.arm_ratios, dict):
                 arm_ratio = self.arm_ratios[chrname]
             else:
                 arm_ratio = self.arm_ratios
             cent_idx = round(self.regions[chrname]*arm_ratio)
-            # 'p' entry in arm_sizes is also the cent index
-            self.arm_sizes[chrname] = [cent_idx, self.regions[chrname] - cent_idx]
+            # 'p' entry in _arm_sizes is also the cent index
+            self._arm_sizes[chrname] = [cent_idx, self.regions[chrname] - cent_idx]
     
     def compute_fitness(self, clone):
         fitness = 1
@@ -34,7 +34,7 @@ class BaseArmLibrary(BaseLibrary):
         for chrname in self.regions:
             for a in [0, 1]:
                 s = self[chrname][a]
-                n = clone.attributes.arm_counts[chrname][a] / self.arm_sizes[chrname][a]
+                n = clone.attributes.arm_counts[chrname][a] / self._arm_sizes[chrname][a]
                 fitness *= (1 + s)**(n/ploidy)
         return fitness
     
@@ -53,7 +53,7 @@ class BaseArmLibrary(BaseLibrary):
             for chrname in self.regions:
                 for a in [0, 1]:
                     s = self[chrname][a]
-                    n = arm_counts[chrname][a] / self.arm_sizes[chrname][a]
+                    n = arm_counts[chrname][a] / self._arm_sizes[chrname][a]
                     fitness *= (1 + s)**(n/ploidy)
             return fitness
 
@@ -67,36 +67,36 @@ class BaseArmLibrary(BaseLibrary):
         pos.sort(key=lambda x: x[2], reverse=True)
         neg.sort(key=lambda x: x[2])
 
-        arm_counts = {chrname: [2*s for s in sizes] for chrname, sizes in self.arm_sizes.items()}
+        arm_counts = {chrname: [2*s for s in sizes] for chrname, sizes in self._arm_sizes.items()}
         cur_fit = self.base_fit
-        start_nregions = self.ndiploid_regions
+        start_nregions = self._ndiploid_regions
         cur_nregions = start_nregions*2
         count = 0
         while count < self.max_distinct_driv and (len(pos) > 0 or len(neg) > 0):
             fit1, fit2 = -1, -1
             if len(pos) > 0:
                 chrname,a,s = pos[0]
-                arm_counts[chrname][a] = self.max_region_CN*self.arm_sizes[chrname][a]
-                nregions = cur_nregions + arm_counts[chrname][a] - (2*self.arm_sizes[chrname][a])
+                arm_counts[chrname][a] = self.max_region_CN*self._arm_sizes[chrname][a]
+                nregions = cur_nregions + arm_counts[chrname][a] - (2*self._arm_sizes[chrname][a])
                 fit1 = compute_fitness_from_counts(arm_counts, nregions/start_nregions)
-                arm_counts[chrname][a] = 2*self.arm_sizes[chrname][a]
+                arm_counts[chrname][a] = 2*self._arm_sizes[chrname][a]
             if len(neg) > 0:
                 chrname,a,s = neg[0]
                 arm_counts[chrname][a] = 0
-                nregions = cur_nregions - (2*self.arm_sizes[chrname][a])
+                nregions = cur_nregions - (2*self._arm_sizes[chrname][a])
                 fit2 = compute_fitness_from_counts(arm_counts, nregions/start_nregions)
-                arm_counts[chrname][a] = 2*self.arm_sizes[chrname][a]
+                arm_counts[chrname][a] = 2*self._arm_sizes[chrname][a]
             if fit1 == -1 and fit2 == -1:
                 break
             elif fit1 > fit2:
                 chrname,a,s = pos.pop(0)
-                arm_counts[chrname][a] = self.max_region_CN*self.arm_sizes[chrname][a]
-                cur_nregions = cur_nregions + arm_counts[chrname][a] - (2*self.arm_sizes[chrname][a])
+                arm_counts[chrname][a] = self.max_region_CN*self._arm_sizes[chrname][a]
+                cur_nregions = cur_nregions + arm_counts[chrname][a] - (2*self._arm_sizes[chrname][a])
                 cur_fit = fit1
             else:
                 chrname,a,s = neg.pop(0)
                 arm_counts[chrname][a] = 0
-                cur_nregions = cur_nregions - (2*self.arm_sizes[chrname][a])
+                cur_nregions = cur_nregions - (2*self._arm_sizes[chrname][a])
                 cur_fit = fit2
             count += 1
         self.max_fit = cur_fit
@@ -125,7 +125,7 @@ class BaseArmLibrary(BaseLibrary):
         nmutated_arms = 0
         for chrname in self.regions:
             for a in [0, 1]:
-                r = clone.attributes.arm_counts[chrname][a]/(self.arm_sizes[chrname][a]*p)
+                r = clone.attributes.arm_counts[chrname][a]/(self._arm_sizes[chrname][a]*p)
                 if r > 1.5 or r < 0.5:
                     nmutated_arms += 1
 
@@ -144,7 +144,7 @@ class BaseArmLibrary(BaseLibrary):
 
     def update_stats(self, clone, chromosome, start, end, mag=1):
         for r in chromosome.seq[start:end]:
-            if r < self.arm_sizes[chromosome.name][0]:
+            if r < self._arm_sizes[chromosome.name][0]:
                 clone.attributes.arm_counts[chromosome.name][0] += mag
             else:
                 clone.attributes.arm_counts[chromosome.name][1] += mag
@@ -155,7 +155,7 @@ class BaseArmLibrary(BaseLibrary):
             for chromosome in clone.genome.get_chromosomes():
                 chrname = chromosome.name
                 for r in chromosome.seq:
-                    if r < self.arm_sizes[chrname][0]:
+                    if r < self._arm_sizes[chrname][0]:
                         arm_counts[chrname][0] += 1
                     else:
                         arm_counts[chrname][1] += 1

@@ -1,10 +1,12 @@
 import numpy as np
+from typing import Optional, Union, List
 
 from sistem.anatomy.base_anatomy import BaseAnatomy
+from sistem.selection import BaseLibrary
 
 class StaticAnatomy(BaseAnatomy):
-    def __init__(self, **kargs):
-        super().__init__(**kargs)
+    def __init__(self, libraries: Optional[Union[BaseLibrary, List[BaseLibrary]]], **kargs):
+        super().__init__(libraries=libraries, **kargs)
         self.tmatrix = None
     
     def initialize_distances(self, method='random', matrix=None, path=None):
@@ -12,15 +14,15 @@ class StaticAnatomy(BaseAnatomy):
         
         rates = [(1/x)*self.eps if x != 0 else 0 for x in self.dists[:, 0]]
         idxs = np.triu_indices(self.nsites)
-        self.tmatrix = np.zeros((self.nsites, self.nsites))
-        self.tmatrix[idxs] = rates
-        self.tmatrix = self.tmatrix + self.tmatrix.T - np.diag(np.diag(self.tmatrix))
+        self._tmatrix = np.zeros((self.nsites, self.nsites))
+        self._tmatrix[idxs] = rates
+        self._tmatrix = self._tmatrix + self._tmatrix.T - np.diag(np.diag(self._tmatrix))
         self.initialized = True
 
     def get_oneway_transition_probabilities(self, clone):
-        return self.tmatrix[clone.site]
+        return self._tmatrix[clone.site]
     
     def get_total_transition_probability(self, clone):
-        sprobs = self.tmatrix[clone.site]
+        sprobs = self._tmatrix[clone.site]
         tot_prob = 1 - np.prod([1 - x for x in sprobs])
         return tot_prob

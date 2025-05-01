@@ -1,6 +1,21 @@
 import numpy as np
 import sys
 import itertools
+import shutil
+from typing import Optional, List
+
+class DependencyError(Exception):
+    """Exception raised when required dependencies are missing."""
+    pass
+
+def check_dependencies(commands: Optional[List[str]] = None):
+    missing = []
+    for cmd in commands:
+        if shutil.which(cmd) is None:
+            missing.append(cmd)
+    if missing:
+        raise DependencyError(f"The following binaries must be installed and callable: {', '.join(missing)}.")
+    return True
 
 def compute_growth_rate(N0, Nt, tgen):
     '''

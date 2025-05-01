@@ -13,7 +13,7 @@ from sistem.parameters import Parameters, fill_params
 class BaseAnatomy(ABC):
     def __init__(
         self, 
-        libraries: Optional[BaseLibrary] = None, 
+        libraries: Optional[Union[BaseLibrary, List[BaseLibrary]]] = None,
         params: Optional[Parameters] = None,
         nsites: Optional[int] = None, 
         growth_rate: Optional[float] = None, 
@@ -159,11 +159,11 @@ class BaseAnatomy(ABC):
 class SimpleAnatomy(BaseAnatomy):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.tmatrix = np.array([[self.eps for j in range(i)] + [0] + [self.eps for j in range(i+1, self.nsites)] for i in range(self.nsites)])
+        self._tmatrix = np.array([[self.eps for j in range(i)] + [0] + [self.eps for j in range(i+1, self.nsites)] for i in range(self.nsites)])
         self.initialized = True
 
     def get_oneway_transition_probabilities(self, clone):
-        return self.tmatrix[clone.site]
+        return self._tmatrix[clone.site]
 
     def get_total_transition_probability(self, clone):
         return 1 - (1 - self.eps)**self.nsites

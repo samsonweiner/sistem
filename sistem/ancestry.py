@@ -28,18 +28,17 @@ class GrowthSimulator:
         self.clones = {i: [] for i in range(self.anatomy.nsites)}
         self.site_counts = np.zeros(self.anatomy.nsites, dtype=int)
         self.gen = 0
-        self.empty_sites = set()
 
-        self.clone_ids = [0 for _ in range(self.anatomy.nsites)]
-
-        self.igenome = init_diploid_genome(self.anatomy.libraries[0])
-        init_clone = Clone(name=self.assign_clone_name(0), genome=copy.deepcopy(self.igenome), library=self.anatomy.libraries[0], popsize=self.anatomy.N0, site=0, birth_gen=0)
+        self._empty_sites = set()
+        self._clone_ids = [0 for _ in range(self.anatomy.nsites)]
+        self._igenome = init_diploid_genome(self.anatomy.libraries[0])
+        init_clone = Clone(name=self._assign_clone_name(0), genome=copy.deepcopy(self._igenome), library=self.anatomy.libraries[0], popsize=self.anatomy.N0, site=0, birth_gen=0)
         self.clones[0].append(init_clone)
         self.site_counts[0] += init_clone.popsize
 
         # Data structures/variables used in sampling and phylogeny construction
-        self.observed = defaultdict(int)
-        self.clone_tree = None
+        self._observed = defaultdict(int)
+        self._clone_tree = None
 
     def __iter__(self):
         return chain.from_iterable(self.clones.values())
@@ -51,12 +50,12 @@ class GrowthSimulator:
             raise ValueError("Anatomy object has not been properly initialized. Try running anatomy.initialize_distances method.")
         return anatomy
     
-    def assign_clone_name(self, site):
-        name = self.anatomy.site_ids[site] + str(self.clone_ids[site])
-        self.clone_ids[site] += 1
+    def _assign_clone_name(self, site):
+        name = self.anatomy.site_ids[site] + str(self._clone_ids[site])
+        self._clone_ids[site] += 1
         return name
     
-    def get_mean_fitness(self):
+    def _get_mean_fitness(self):
         for clone in self:
             clone.update_fitness()
         mean_fits = []
@@ -67,13 +66,13 @@ class GrowthSimulator:
                 mean_fits.append(np.average([clone.fitness for clone in clones], weights=[clone.popsize for clone in clones]))
         return mean_fits
     
-    def create_new_clones(self, parent_clone, site, distr_events, focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean):
+    def _create_new_clones(self, parent_clone, site, distr_events, focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean):
         '''
         Given array distr_events from draw_num_CNA_events, creates a new clone for each element with event count equal to the element
         '''
         nviolations = 0
         for x,y in distr_events:
-            clone = parent_clone.replicate(name=self.assign_clone_name(site))
+            clone = parent_clone.replicate(name=self._assign_clone_name(site))
             if x > 0:
                 mut.select_CNA_events(clone, x, focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean)
             if y > 0:
@@ -86,9 +85,9 @@ class GrowthSimulator:
         return nviolations
     
     # PARALLELIZE?
-    def cycle_birthdeath(self, focal_driver_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean, SNV_driver_rate):
+    def _cycle_birthdeath(self, focal_driver_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean, SNV_driver_rate):
         totbirths, totdeaths = [0 for i in range(self.anatomy.nsites)], [0 for i in range(self.anatomy.nsites)]
-        mean_fits = self.get_mean_fitness()
+        mean_fits = self._get_mean_fitness()
         
         # Driver mutations
         for s,m in enumerate(mean_fits):
@@ -106,7 +105,7 @@ class GrowthSimulator:
                         nevents_SNV = mut.draw_num_SNV_events(nbirths, SNV_driver_rate)
                         if nevents_CN > 0 or nevents_SNV > 0:
                             distr_events = mut.distribute_events(nbirths, nevents_CN, nevents_SNV)
-                            nviolations = self.create_new_clones(clone, s, distr_events, clone_focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean)
+                            nviolations = self._create_new_clones(clone, s, distr_events, clone_focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean)
                             clone.popsize -= len(distr_events)
                             self.site_counts[s] -= nviolations
                     else:
@@ -122,7 +121,7 @@ class GrowthSimulator:
 
         return mean_fits, totbirths, totdeaths
 
-    def cycle_migrations(self, t_max, pattern):
+    def _cycle_migrations(self, t_max, pattern):
         # First figure out what migrations are happening, then afterwards do the shuffling
         totmigrations = [0 for i in range(self.anatomy.nsites)]
         if self.anatomy.nsites == 1:
@@ -135,7 +134,7 @@ class GrowthSimulator:
         moves = defaultdict(list)
         for s,clones in self.clones.items():
             if len(clones) == 0:
-                self.empty_sites.add(s)
+                self._empty_sites.add(s)
             for clone in clones[:]:
                 nmigrations = get_num_migrations(clone, self.anatomy.get_total_transition_probability(clone))
                 if nmigrations > 0:
@@ -146,7 +145,7 @@ class GrowthSimulator:
                             if multi_source:
                                 migration_size = self.anatomy.N0
 
-                            new_clone = clone.replicate(name=self.assign_clone_name(a), site=a, popsize=migration_size, library=self.anatomy.libraries[a])
+                            new_clone = clone.replicate(name=self._assign_clone_name(a), site=a, popsize=migration_size, library=self.anatomy.libraries[a])
                             moves[a].append(new_clone)
                             self.site_counts[a] += migration_size
                             self.site_counts[s] -= migration_size
@@ -158,20 +157,20 @@ class GrowthSimulator:
         
         for s,new_clones in moves.items():
             # For newly seeded sites, need to initialize growth functions
-            if s in self.empty_sites:
+            if s in self._empty_sites:
                 fits = []
                 for clone in new_clones:
                     clone.update_fitness()
                     fits.append(clone.fitness)
                 mean_fit = np.mean(fits)
                 self.anatomy.init_pop_dynamic(s, self.gen, t_max, cur_fit=mean_fit, library=self.anatomy.libraries[s])
-                self.empty_sites.remove(s)
+                self._empty_sites.remove(s)
             self.clones[s].extend(new_clones)
         
         return totmigrations
 
     # TODO: implement min detectable
-    def terminate(self, t_max, min_detectable):
+    def _terminate(self, t_max, min_detectable):
         if sum(self.site_counts) == 0:
             logging.info('\nTERMINATE: No remaining living cells')
             return True
@@ -184,7 +183,7 @@ class GrowthSimulator:
         else:
             return False
     
-    def log_current_gen(self, mean_fits, totbirths, totdeaths, totmigrations):
+    def _log_current_gen(self, mean_fits, totbirths, totdeaths, totmigrations):
         logging.info(f'\nGen{self.gen}')
         logging.info(f'P\t{len(self.clones[0])}\t{self.site_counts[0]}\t{mean_fits[0]}\t{totbirths[0]}\t{totdeaths[0]}\t{totmigrations[0]}')
         for s in range(1, self.anatomy.nsites):
@@ -215,16 +214,16 @@ class GrowthSimulator:
             logging.info(f'STARTING AGENT GROWTH MODEL')
             logging.info('Site\tNumClones\tPopSize\tMeanFit\tNumBirths\tNumDeaths\tNumMigrations')
             mean_fits = totbirths = totdeaths = totmigrations = [0 for i in range(self.anatomy.nsites)]
-            self.log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
+            self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
         else:
             logging.info(f'\nCONTINUE')
         
-        if not self.terminate(params.t_max, params.min_detectable):
+        if not self._terminate(params.t_max, params.min_detectable):
             self.gen += 1
             Cell.gen = self.gen
-            mean_fits, totbirths, totdeaths = self.cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
-            totmigrations = self.cycle_migrations(params.t_max, pattern=pattern)
-            self.log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
+            mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
+            totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
+            self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
 
     # Run agent-based simulator until each site has a minimum detectable number of cells or max generation is reached
     def simulate_agents(
@@ -251,22 +250,22 @@ class GrowthSimulator:
             logging.info(f'STARTING AGENT GROWTH MODEL')
             logging.info('Site\tNumClones\tPopSize\tMeanFit\tNumBirths\tNumDeaths\tNumMigrations')
             mean_fits = totbirths = totdeaths = totmigrations = [0 for i in range(self.anatomy.nsites)]
-            self.log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
+            self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
         else:
             logging.info(f'\nCONTINUE')
 
-        TERMINATE = self.terminate(params.t_max, params.min_detectable)
+        TERMINATE = self._terminate(params.t_max, params.min_detectable)
         while not TERMINATE:
             self.gen += 1
             Cell.gen = self.gen
-            if self.terminate(params.t_max, params.min_detectable):
+            if self._terminate(params.t_max, params.min_detectable):
                 self.gen -= 1
                 Cell.gen = self.gen
                 TERMINATE = True
                 break
-            mean_fits, totbirths, totdeaths = self.cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
-            totmigrations = self.cycle_migrations(params.t_max, pattern=pattern)
-            self.log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
+            mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
+            totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
+            self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
         return True
 
     # Samples cells from each anatomical site. Adds to a dictionary of clones and the number of sampled cells from that clone
@@ -289,8 +288,8 @@ class GrowthSimulator:
             if ncells > 0 and tot_cells >= ncells:
                 idxs = np.random.choice(range(len(clones)), ncells, p=pops/tot_cells)
                 for i in idxs:
-                    self.observed[clones[i]] += 1
-        self.clone_tree = create_clone_tree(self.observed)
+                    self._observed[clones[i]] += 1
+        self._clone_tree = create_clone_tree(self._observed)
 
     #def simulate_lineage(self, CNA_pass_rate, SNV_pass_rate, focal_gain_rate, length_mean, mag_mean)
 
@@ -311,9 +310,9 @@ class GrowthSimulator:
     ):
         params = fill_params(params, out_dir=out_dir, CNA_pass_rate=CNA_pass_rate, SNV_pass_rate=SNV_pass_rate, focal_gain_rate=focal_gain_rate, length_mean=length_mean, mag_mean=mag_mean, bin_size=bin_size, ncells_normal=ncells_normal, ref=ref, alt_ref=alt_ref)
 
-        tree = create_singlecell_tree(self.clone_tree, self.observed, self.gen)
+        tree = create_singlecell_tree(self._clone_tree, self._observed, self.gen)
         resolve_multifurcation(tree)
-        evolve_tree_with_passengers(tree, self.igenome, params.CNA_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
+        evolve_tree_with_passengers(tree, self._igenome, params.CNA_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
         if params.ncells_normal > 1:
             add_dummy_diploids(tree, self.gen, params.ncells_normal)
         tree.save(os.path.join(params.out_dir, 'cell_tree_full.nwk'))
@@ -344,9 +343,9 @@ class GrowthSimulator:
     ):
         params = fill_params(params, out_dir=out_dir, min_mut_fraction=min_mut_fraction, CNA_pass_rate=CNA_pass_rate, SNV_pass_rate=SNV_pass_rate, focal_gain_rate=focal_gain_rate, length_mean=length_mean, mag_mean=mag_mean, bin_size=bin_size, ncells_normal=ncells_normal, ref=ref, alt_ref=alt_ref)
 
-        tree, obs = create_converted_tree(self.clone_tree, self.observed)
+        tree, obs = create_converted_tree(self._clone_tree, self._observed)
         sample_counts = merge_and_resolve_clone_tree(tree, obs, self.anatomy.nsites, self.gen, params.min_mut_fraction)
-        evolve_tree_with_passengers(tree, self.igenome, params.CNA_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
+        evolve_tree_with_passengers(tree, self._igenome, params.CNA_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
         if params.ncells_normal > 1:
             add_dummy_diploids(tree, self.gen, 1)
             dip = tree.find('diploid')
@@ -363,7 +362,7 @@ class GrowthSimulator:
         save_mutations_from_tree(tree, params.out_dir, params.bin_size)
         save_CNPs(tree, params.out_dir, params.bin_size)
         save_SNVs(tree, params.out_dir, ref=params.ref, alt_ref=params.alt_ref)
-        return tree, sample_counts
+        return tree
     
     def save_checkpoint(self, outfile):
         with open(outfile, 'wb') as f:

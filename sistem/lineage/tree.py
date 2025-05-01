@@ -1,8 +1,15 @@
 from collections import deque
 import os
+from typing import Optional
 
 class Node:
-    def __init__(self, name=None, parent=None, edge_length=0, **kwargs):
+    def __init__(
+        self, 
+        name=None, 
+        parent=None, 
+        edge_length=0, 
+        **kwargs
+    ):
         self.name = name
         self.parent = parent
         self.length = edge_length
@@ -20,7 +27,7 @@ class Node:
         return len(self.iter_leaves())
     
     #format codes --> 0: leaf names only, 1: leaf names + lengths only, 2: leaf and internal names, 3: leaf and internal names + lengths
-    def write_newick(self, terminate=True, format=3):
+    def _write_newick(self, terminate=True, format=3):
         if self.is_leaf():
             if format == 0 or format == 2:
                 return str(self)
@@ -29,7 +36,7 @@ class Node:
         else:
             newick_str = '('
             for child in self.children:
-                newick_str += child.write_newick(terminate=False, format=format) + ','
+                newick_str += child._write_newick(terminate=False, format=format) + ','
             newick_str = newick_str[:-1]
             newick_str += ')'
             if format == 2 or format == 3 or terminate:
@@ -118,7 +125,11 @@ class Node:
         return False
     
 class Tree:
-    def __init__(self, root=None, newick=None):
+    def __init__(
+        self, 
+        root: Optional[Node] = None, 
+        newick: Optional[str] = None
+    ):
         self.root = root
         if newick:
             if os.path.exists(newick):
@@ -130,7 +141,7 @@ class Tree:
     
     
     def __repr__(self):
-        return self.root.write_newick(format=3)
+        return self.root._write_newick(format=3)
 
     def __len__(self):
         return len([leaf for leaf in self.iter_leaves()])
@@ -139,11 +150,11 @@ class Tree:
         return self.iter_leaves()
 
     def print_newick(self, format=3):
-        newick_str = self.root.write_newick(format=format)
+        newick_str = self.root._write_newick(format=format)
         print(newick_str)
     
     def write_newick(self, format=3):
-        newick_str = self.root.write_newick(format=format)
+        newick_str = self.root._write_newick(format=format)
         return newick_str
 
     #post order traversal, i.e. left,right,middle.
@@ -219,13 +230,13 @@ class Tree:
         return mutations
 
     def save(self, file_path, format=3):
-        newick_str = self.root.write_newick(format=format)
+        newick_str = self.root._write_newick(format=format)
         f = open(file_path, 'w+')
         f.write(newick_str)
         f.close()
 
     def copy_structure(self):
-        ts = self.write_newick(format=3)
+        ts = self._write_newick(format=3)
         new_t = Tree(newick=ts)
         return new_t
     

@@ -10,6 +10,10 @@ from sistem.parameters import Parameters, fill_params
 class BaseHybridLibrary(BaseRegionLibrary):
     is_driver_region_model = True
     is_driver_SNV_model = True
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.lam = {chrname: [] for chrname in self.regions.keys()}
         
     # Needed
     def compute_fitness(self, clone):
