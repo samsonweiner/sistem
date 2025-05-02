@@ -96,6 +96,17 @@ class BaseHybridLibrary(BaseRegionLibrary):
 
 
 class RandomHybridLibrary(BaseHybridLibrary):
+    """The hybrid selection model with randomly generated selection coefficients.
+
+    The hybrid model extends the region model to consider SNVs as well. The idea is that SNVs can disrupt the function of genes, thereby altering the selective effect of that gene on the cell's fitness. Here we distinguish between driver SNVs, which have this effect, and passenger SNVs, which have no effect (synonymous). For each region on each chromosome :math:`(k,i)`, randomly assign a second coefficient :math:`\\lambda_{k,i}` in the range (-SNV_coeff, SNV_coeff), where :math:`\\lambda_{k,i} > 0` if :math:`(k,i)` is a TSG but :math:`\\lambda_{k,i} > 0` or :math:`\\lambda_{k,i} < 0` if :math:`(k,i)` is an OG. Additionally, a fraction of NEU regions are set to be essential genes (EG), where if :math:`(k,i)` is an EG then :math:`\\delta_{k,i} = 0` and :math:`\\lambda_{k,i} > 0`, while :math:`\\lambda_{k,i} = 0` for the remaining neutral genes. Fitness is computed as
+
+    .. math::
+    
+       s_a(c) = \\prod_{k=1}^K \\prod_{i=1}^{m_k} \\Big(1 + \\delta_{k,i}\\cdot(e^{-\\hat{y}_{k,i} \\lambda_{k,i}})\\Big)^{x_{k,i}/p_c} \\cdot \\Big(e^{-\\hat{y}_{k,i} \\lambda_{k,i}}\\Big)^{h(k,i)},
+
+    where :math:`\\hat{y}_{k,i}` is the average number of driver SNVs on any copy of region :math:`i' of chromosome :math:`k' and :math:`h` is an indicator function with :math:`h(k,i) = 1` if region :math:`(k,i)` is an EG and :math:`h(k,i) = 0` otherwise.
+
+    """
     def initialize(
         self, 
         params: Optional[Parameters] = None, 
@@ -105,6 +116,16 @@ class RandomHybridLibrary(BaseHybridLibrary):
         TSG_r: Optional[float] = None, 
         EG_r: Optional[float] = None
     ):
+        """Method used to initialize selection coefficients. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+        Args:
+            params (Parameters, optional):
+            CN_coeff (float, optional):
+            SNV_coeff (float, optional):
+            OG_r (float, optional):
+            TSG_r (float, optional):
+            EG_r (float, optional):
+        """
         params = fill_params(params, CN_coeff=CN_coeff, SNV_coeff=SNV_coeff, OG_r=OG_r, TSG_r=TSG_r, EG_r=EG_r)
 
         NEU_r = 1 - params.OG_r - params.TSG_r - params.EG_r
@@ -135,12 +156,23 @@ class RandomHybridLibrary(BaseHybridLibrary):
         self.init_max_fit()
 
 class FittedHybridLibrary(BaseHybridLibrary):
+    """Uses the same model as :code:`RandomHybridLibrary`, but the selection coefficients are given by the user.
+
+    """
     def initialize(
         self, 
         filepath: Optional[str] = None,
         delta: Optional[Dict] = None,
         lam: Optional[Dict] = None,
     ):
+        """Method used to initialize selection coefficients.
+
+        Args:
+            filepath (str, optional): Path to a tsv file containing the selection coefficients. The first entry is the chromosome name, followed by the selection coefficient pairs in order of reference regions. Each pair is of the form x,y where x is the CN coefficient and y is the SNV coefficient (:math:`\\delta` and :math:`\\lambda`).
+            delta (dict, optional): Instead of passing a file, users can pass a dictionary where keys are chromosome names and values are an :math:`m_k`-length array of CN coefficients. Must also be passed with lam in the same form.
+            lam (dict, optional): Instead of passing a file, users can pass a dictionary where keys are chromosome names and values are an :math:`m_k`-length array of SNV coefficients. Must also be passed with delta in the same form.
+        
+        """
         if delta is not None and lam is not None:
             if set(delta.keys()) != set(lam.keys()):
                 raise ValueError("Provided delta and lam inputs should use the same chromosome names.")

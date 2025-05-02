@@ -10,7 +10,7 @@ from sistem.utilities.utilities import iter_by_chunk, get_reg_id, sort_chrom_nam
 from sistem.data.utils import gen_coverage, get_alpha_beta, bin_region_readcounts, get_mutated_basepairs, count_region_CNs
 from sistem.data.sequence import build_cell_ref
 from sistem.data.profiles import save_singlecell_readcounts, save_clonal_readcounts
-from sistem.lineage.tree import Tree
+from sistem.lineage import Tree
 from sistem.parameters import Parameters, fill_params
 from sistem.utilities.IO import read_fasta
 
@@ -43,8 +43,6 @@ def gen_reads_cell(
     last_region_lens = {chrname: int(l % region_len) for chrname,l in chrom_lens.items()}
 
     read_dir = os.path.join(out_dir, 'reads')
-    if not os.path.isdir(read_dir):
-        os.path.makedirs(read_dir)
     prefix = os.path.join(read_dir, f"{cell.name}")
     prefixes = [f"{prefix}_allele0", f"{prefix}_allele1"]
     for cur_prefix in prefixes:
@@ -114,11 +112,29 @@ def gen_reads(
     num_processors: Optional[int] = None,
     lorenz_x: float = 0.5
 ):
-    params = fill_params(params, out_dir=out_dir, coverage=coverage, bin_size=bin_size, read_len=read_len, lorenz_y=lorenz_y, num_processors=num_processors)
+    """Given a Tree object returned by GrowthSimulator.simulate_singlecell_lineage, generates synthetic paired-end DNA sequencing reads for each cell. Requires the *dwgsim* and *samtools* binaries be available in the user's :code:`$PATH` variable. Will create two fastq files for each cell located in the 'reads' directory within the provided output directory. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+    Args:
+        tree (Tree):
+        params (Parameters, optional): 
+        out_dir (str, optional): 
+        ref (str, optional): 
+        alt_ref (str, optional): 
+        coverage (float, optional): 
+        bin_size (int, optional): 
+        read_len (int, optional): 
+        lorenz_y (float, optional): 
+        num_processors (int, optional): 
+    """
+    params = fill_params(params, out_dir=out_dir, ref=ref, alt_ref=alt_ref, coverage=coverage, bin_size=bin_size, read_len=read_len, lorenz_y=lorenz_y, num_processors=num_processors)
+
+    read_dir = os.path.join(out_dir, 'reads')
+    if not os.path.isdir(read_dir):
+        os.path.makedirs(read_dir)
 
     check_dependencies(['samtools', 'dwgsim'])
 
-    readcounts = gen_readcounts_singlecell(tree, params=params)
+    readcounts = gen_readcounts_singlecell(tree, params=params, lorenz_x=lorenz_x)
     leaves = list(tree.iter_leaves())
 
     if params.num_processors == 1:
@@ -139,6 +155,20 @@ def gen_readcounts_singlecell(
     lorenz_y: Optional[float] = None,
     lorenz_x: float = 0.5
 ):
+    """Given a Tree object returned by GrowthSimulator.simulate_singlecell_lineage, compiles cell-specific region-level copy numbers and draws allele-specific read counts. These will automatically be saved in the output directory. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+    Args:
+        tree (Tree):
+        params (Parameters, optional): 
+        out_dir (str, optional): 
+        coverage (float, optional): 
+        bin_size (int, optional): 
+        read_len (int, optional): 
+        lorenz_y (float, optional): 
+
+    Returns:
+        dict: A dictionary where keys are cells and values are a dictionary containing the region-level allele-specific copy numbers.
+    """
     params = fill_params(params, out_dir=out_dir, coverage=coverage, bin_size=bin_size, read_len=read_len, lorenz_y=lorenz_y)
     region_len = tree.root.library.region_len
     regions = tree.root.library.regions
@@ -187,6 +217,15 @@ def gen_readcounts_bulk(
     out_dir: Optional[str] = None,
     coverage: Optional[float] = None
 ):
+    """Given a Tree object returned by GrowthSimulator.simulate_clonal_lineage, draws a total and variant read count for each site at every SNV position in the observed cells. These will automatically be saved in the output directory. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+
+    Args:
+        tree (Tree):
+        params (Parameters, optional): 
+        out_dir (str, optional): 
+        coverage (float, optional): 
+    """
     params = fill_params(params, out_dir=out_dir, coverage=coverage)
     chrom_lens = tree.root.library.chrom_lens
     region_len = tree.root.library.region_len

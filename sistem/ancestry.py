@@ -10,19 +10,31 @@ from typing import Optional, Union
 
 from sistem.utilities.IO import setup_logger
 from sistem.genome.genome import init_diploid_genome
-from sistem.lineage.cell import Cell, Clone
+from sistem.lineage import Cell, Clone
 import sistem.lineage.mutation as mut
 from sistem.lineage.lineage import create_clone_tree, create_converted_tree, create_singlecell_tree, resolve_multifurcation, merge_and_resolve_clone_tree, collapse_tree
 from sistem.lineage.reevolve import evolve_tree_with_passengers
 from sistem.lineage.utils import add_dummy_diploids
 from sistem.anatomy.utils import get_num_migrations, draw_migrations, generate_migration_graph, save_migration_graph
 from sistem.anatomy import BaseAnatomy
-from sistem.data.profiles import save_mutations_from_tree, save_CNPs, save_SNVs
+from sistem.data.profiles import save_mutations_from_tree, save_CNPs, save_SNVs, site_CN_averages
 from sistem.parameters import Parameters, fill_params
 
 class GrowthSimulator:
+    """The main class used to run the simulator. 
+
+    Args:
+        anatomy (Anatomy): The Anatomy object which has been initialized. Required.
+
+    Attributes:
+        clones (Dict[list]): A dictionary where keys are site numbers (0-nsites-1), and values are a list of clones currently present in the site. 
+        site_counts (array): Contains the total cell count of each site.
+        gen (int): The current generation of the simulator.
+    """
     def __init__(self, anatomy):
-        # Data structures/variables used in agent-based growth model
+        """Constructor method
+
+        """
         self.anatomy = self._check_anatomy(anatomy)
 
         self.clones = {i: [] for i in range(self.anatomy.nsites)}
@@ -67,9 +79,9 @@ class GrowthSimulator:
         return mean_fits
     
     def _create_new_clones(self, parent_clone, site, distr_events, focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean):
-        '''
+        """
         Given array distr_events from draw_num_CNA_events, creates a new clone for each element with event count equal to the element
-        '''
+        """
         nviolations = 0
         for x,y in distr_events:
             clone = parent_clone.replicate(name=self._assign_clone_name(site))
@@ -188,44 +200,7 @@ class GrowthSimulator:
         logging.info(f'P\t{len(self.clones[0])}\t{self.site_counts[0]}\t{mean_fits[0]}\t{totbirths[0]}\t{totdeaths[0]}\t{totmigrations[0]}')
         for s in range(1, self.anatomy.nsites):
             logging.info(f'M{s}\t{len(self.clones[s])}\t{self.site_counts[s]}\t{mean_fits[s]}\t{totbirths[s]}\t{totdeaths[s]}\t{totmigrations[s]}')
-        
-    # Run a single cycle of the agent-based model
-    def cycle_gen(
-        self, 
-        params: Optional[Parameters] = None,
-        t_max: Optional[int] = None, 
-        min_detectable: Optional[int] = None, 
-        focal_driver_rate: Optional[float] = None, 
-        arm_rate: Optional[float] = None, 
-        chromosomal_rate: Optional[float] = None, 
-        WGD_rate: Optional[float] = None, 
-        focal_gain_rate: Optional[float] = None, 
-        chrom_dup_rate: Optional[float] = None, 
-        length_mean: Optional[Union[int, float]] = None, 
-        mag_mean: Optional[Union[int, float]] = None, 
-        SNV_driver_rate: Optional[float] = None,
-        log_path: Optional[str] = None,
-        pattern: str = ''
-    ):
-        params = fill_params(params, t_max=t_max, min_detectable=min_detectable, focal_driver_rate=focal_driver_rate, arm_rate=arm_rate, chromosomal_rate=chromosomal_rate, WGD_rate=WGD_rate, focal_gain_rate=focal_gain_rate, chrom_dup_rate=chrom_dup_rate, length_mean=length_mean, mag_mean=mag_mean, SNV_driver_rate=SNV_driver_rate, log_path=log_path)
-        setup_logger(file_path=params.log_path)
 
-        if self.gen == 0:
-            logging.info(f'STARTING AGENT GROWTH MODEL')
-            logging.info('Site\tNumClones\tPopSize\tMeanFit\tNumBirths\tNumDeaths\tNumMigrations')
-            mean_fits = totbirths = totdeaths = totmigrations = [0 for i in range(self.anatomy.nsites)]
-            self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
-        else:
-            logging.info(f'\nCONTINUE')
-        
-        if not self._terminate(params.t_max, params.min_detectable):
-            self.gen += 1
-            Cell.gen = self.gen
-            mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
-            totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
-            self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
-
-    # Run agent-based simulator until each site has a minimum detectable number of cells or max generation is reached
     def simulate_agents(
         self, 
         params: Optional[Parameters] = None,
@@ -243,6 +218,23 @@ class GrowthSimulator:
         log_path: Optional[str] = None,
         pattern: str = ''
     ):
+        """Begins the agent-based phase of the simulator. Runs until a minimum detectable number of cells is reached in each site, the max generation is reached, or no cells are left in any site. Only simulates driver mutations. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+        Args:
+            params (Parameters, optional):
+            t_max (int, optional):
+            min_detectable (int, optional):
+            focal_driver_rate (float, optional):
+            arm_rate (float, optional):
+            chromosomal_rate (float, optional):
+            WGD_rate (float, optional):
+            focal_gain_rate (float, optional):
+            chrom_dup_rate (float, optional):
+            length_mean (int, float, optional):
+            mag_mean (int, float, optional):
+            SNV_driver_rate (float, optional):
+            log_path (str, optional): 
+        """
         params = fill_params(params, t_max=t_max, min_detectable=min_detectable, focal_driver_rate=focal_driver_rate, arm_rate=arm_rate, chromosomal_rate=chromosomal_rate, WGD_rate=WGD_rate, focal_gain_rate=focal_gain_rate, chrom_dup_rate=chrom_dup_rate, length_mean=length_mean, mag_mean=mag_mean, SNV_driver_rate=SNV_driver_rate, log_path=log_path)
         setup_logger(file_path=params.log_path)
 
@@ -266,15 +258,58 @@ class GrowthSimulator:
             mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
             totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
             self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
-        return True
+    
+    def cycle_gen(
+        self, 
+        params: Optional[Parameters] = None,
+        t_max: Optional[int] = None, 
+        min_detectable: Optional[int] = None, 
+        focal_driver_rate: Optional[float] = None, 
+        arm_rate: Optional[float] = None, 
+        chromosomal_rate: Optional[float] = None, 
+        WGD_rate: Optional[float] = None, 
+        focal_gain_rate: Optional[float] = None, 
+        chrom_dup_rate: Optional[float] = None, 
+        length_mean: Optional[Union[int, float]] = None, 
+        mag_mean: Optional[Union[int, float]] = None, 
+        SNV_driver_rate: Optional[float] = None,
+        log_path: Optional[str] = None,
+        pattern: str = ''
+    ):
+        """Identical to the :code:`simulate_agents` method, but runs for a single generation only
 
-    # Samples cells from each anatomical site. Adds to a dictionary of clones and the number of sampled cells from that clone
+        """
+        params = fill_params(params, t_max=t_max, min_detectable=min_detectable, focal_driver_rate=focal_driver_rate, arm_rate=arm_rate, chromosomal_rate=chromosomal_rate, WGD_rate=WGD_rate, focal_gain_rate=focal_gain_rate, chrom_dup_rate=chrom_dup_rate, length_mean=length_mean, mag_mean=mag_mean, SNV_driver_rate=SNV_driver_rate, log_path=log_path)
+        setup_logger(file_path=params.log_path)
+
+        if self.gen == 0:
+            logging.info(f'STARTING AGENT GROWTH MODEL')
+            logging.info('Site\tNumClones\tPopSize\tMeanFit\tNumBirths\tNumDeaths\tNumMigrations')
+            mean_fits = totbirths = totdeaths = totmigrations = [0 for i in range(self.anatomy.nsites)]
+            self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
+        else:
+            logging.info(f'\nCONTINUE')
+        
+        if not self._terminate(params.t_max, params.min_detectable):
+            self.gen += 1
+            Cell.gen = self.gen
+            mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
+            totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
+            self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
+
     def sample_cells(
         self, 
         params: Optional[Parameters] = None,
         ncells_prim: Optional[int] = None,
         ncells_meta: Optional[int] = None, 
     ):
+        """Samples cells from each anatomical site. The probability that a cell is sampled from a clone is proportional to that clones population size. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+        Args:
+            params (Parameters, optional): 
+            ncells_prim (int, optional): 
+            ncells_meta (int, optional): 
+        """
         params = fill_params(params, ncells_prim=ncells_prim, ncells_meta=ncells_meta)
         
         for s in range(self.anatomy.nsites):
@@ -291,14 +326,12 @@ class GrowthSimulator:
                     self._observed[clones[i]] += 1
         self._clone_tree = create_clone_tree(self._observed)
 
-    #def simulate_lineage(self, CNA_pass_rate, SNV_pass_rate, focal_gain_rate, length_mean, mag_mean)
-
     # Master function for creating resolved tree from sampled cells
     def simulate_singlecell_lineage(
         self, 
         params: Optional[Parameters] = None,
         out_dir: Optional[str] = None, 
-        CNA_pass_rate: Optional[float] = None, 
+        focal_pass_rate: Optional[float] = None, 
         SNV_pass_rate: Optional[float] = None, 
         focal_gain_rate: Optional[float] = None, 
         length_mean: Optional[Union[int, float]] = None, 
@@ -308,11 +341,32 @@ class GrowthSimulator:
         ref: Optional[str] = None,
         alt_ref: Optional[str] = None
     ):
-        params = fill_params(params, out_dir=out_dir, CNA_pass_rate=CNA_pass_rate, SNV_pass_rate=SNV_pass_rate, focal_gain_rate=focal_gain_rate, length_mean=length_mean, mag_mean=mag_mean, bin_size=bin_size, ncells_normal=ncells_normal, ref=ref, alt_ref=alt_ref)
+        """Construct a single-cell lineage from the sampled cells under a coalescent, constrained to obey the underlying clonal evolutionary history, and add passenger mutations. Requires running the :code:`sample_cells` class method beforehand. Automatically saves the ground truth tree, migration graph, mutation history, CNA profiles, and SNV profiles. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+        Args:
+            params (Params, optional): 
+            out_dir (str, optional): 
+            focal_pass_rate (float, optional): 
+            SNV_pass_rate (float, optional): 
+            focal_gain_rate (float, optional): 
+            length_mean (int, float, optional): 
+            mag_mean (int, float, optional): 
+            bin_size (int, optional): 
+            ncells_normal (int, optional): 
+            ref (str, optional): 
+            alt_ref (str, optional): 
+
+        Returns:
+            Tree: The single-cell lineage tree.
+        """
+        params = fill_params(params, out_dir=out_dir, focal_pass_rate=focal_pass_rate, SNV_pass_rate=SNV_pass_rate, focal_gain_rate=focal_gain_rate, length_mean=length_mean, mag_mean=mag_mean, bin_size=bin_size, ncells_normal=ncells_normal, ref=ref, alt_ref=alt_ref)
+
+        if len(self._observed) == 0:
+            raise ValueError("Must run GrowthSimulator.sample_cells beforehand.")
 
         tree = create_singlecell_tree(self._clone_tree, self._observed, self.gen)
         resolve_multifurcation(tree)
-        evolve_tree_with_passengers(tree, self._igenome, params.CNA_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
+        evolve_tree_with_passengers(tree, self._igenome, params.focal_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
         if params.ncells_normal > 1:
             add_dummy_diploids(tree, self.gen, params.ncells_normal)
         tree.save(os.path.join(params.out_dir, 'cell_tree_full.nwk'))
@@ -331,7 +385,7 @@ class GrowthSimulator:
         params: Optional[Parameters] = None,
         out_dir: Optional[str] = None, 
         min_mut_fraction: Optional[float] = None, 
-        CNA_pass_rate: Optional[float] = None, 
+        focal_pass_rate: Optional[float] = None, 
         SNV_pass_rate: Optional[float] = None, 
         focal_gain_rate: Optional[float] = None, 
         length_mean: Optional[Union[int, float]] = None, 
@@ -341,11 +395,33 @@ class GrowthSimulator:
         ref: Optional[str] = None,
         alt_ref: Optional[str] = None
     ):
-        params = fill_params(params, out_dir=out_dir, min_mut_fraction=min_mut_fraction, CNA_pass_rate=CNA_pass_rate, SNV_pass_rate=SNV_pass_rate, focal_gain_rate=focal_gain_rate, length_mean=length_mean, mag_mean=mag_mean, bin_size=bin_size, ncells_normal=ncells_normal, ref=ref, alt_ref=alt_ref)
+        """Construct a clonal lineage from the sampled cells and adds passenger mutations. Optionally prune the observed clones based on a minimum genotype frequency threshold. Requires running the :code:`sample_cells` class method beforehand. Automatically saves the ground truth tree, migration graph, mutation history, CNA profiles, and SNV profiles. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+        Args:
+            params (Params, optional): 
+            out_dir (str, optional): 
+            min_mut_fraction (float, optional): 
+            focal_pass_rate (float, optional): 
+            SNV_pass_rate (float, optional): 
+            focal_gain_rate (float, optional): 
+            length_mean (int, float, optional): 
+            mag_mean (int, float, optional): 
+            bin_size (int, optional): 
+            ncells_normal (int, optional): 
+            ref (str, optional): 
+            alt_ref (str, optional): 
+
+        Returns:
+            Tree: The clonal lineage tree.
+        """
+        params = fill_params(params, out_dir=out_dir, min_mut_fraction=min_mut_fraction, focal_pass_rate=focal_pass_rate, SNV_pass_rate=SNV_pass_rate, focal_gain_rate=focal_gain_rate, length_mean=length_mean, mag_mean=mag_mean, bin_size=bin_size, ncells_normal=ncells_normal, ref=ref, alt_ref=alt_ref)
+
+        if len(self._observed) == 0:
+            raise ValueError("Must run GrowthSimulator.sample_cells beforehand.")
 
         tree, obs = create_converted_tree(self._clone_tree, self._observed)
         sample_counts = merge_and_resolve_clone_tree(tree, obs, self.anatomy.nsites, self.gen, params.min_mut_fraction)
-        evolve_tree_with_passengers(tree, self._igenome, params.CNA_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
+        evolve_tree_with_passengers(tree, self._igenome, params.focal_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
         if params.ncells_normal > 1:
             add_dummy_diploids(tree, self.gen, 1)
             dip = tree.find('diploid')
@@ -362,9 +438,15 @@ class GrowthSimulator:
         save_mutations_from_tree(tree, params.out_dir, params.bin_size)
         save_CNPs(tree, params.out_dir, params.bin_size)
         save_SNVs(tree, params.out_dir, ref=params.ref, alt_ref=params.alt_ref)
+        site_CN_averages(tree, params.out_dir, params.bin_size)
         return tree
     
     def save_checkpoint(self, outfile):
+        """Saves the growth simulator in its current state to a file.
+
+        Args:
+            outfile (str): The location to save the growth simulator.
+        """
         with open(outfile, 'wb') as f:
             pickle.dump(self, f)
     

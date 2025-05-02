@@ -1,7 +1,7 @@
 import numpy as np
 
+from sistem.lineage.cell import Cell
 from sistem.lineage.tree import Tree
-from sistem.lineage.cell import Cell, Clone
 from sistem.lineage.utils import name_cell_tree
 
 def create_clone_tree(observed):

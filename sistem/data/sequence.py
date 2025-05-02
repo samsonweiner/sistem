@@ -1,6 +1,6 @@
 import subprocess
 
-from sistem.genome.chromosome import SNVChromosome
+from sistem.genome import SNVChromosome
 from sistem.utilities.utilities import get_reg_id
 
 def build_cell_ref(chromosome, ref, num_regions, region_len, out_path):

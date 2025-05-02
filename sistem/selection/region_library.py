@@ -9,13 +9,13 @@ from sistem.utilities.utilities import get_reg_id
 from sistem.parameters import Parameters, fill_params
 
 class BaseRegionLibrary(BaseLibrary):
-    '''
+    """
     Base region library
 
     Attributes:
         drivers (dict): keys are chromosome names and values are a list of ids of OGs and TSGs
         essential (dict): keys are chromosome names and values are a list of ids of ESSs
-    '''
+    """
     is_driver_region_model = True
     is_driver_SNV_model = False
 
@@ -26,9 +26,9 @@ class BaseRegionLibrary(BaseLibrary):
     
     # Needed
     def compute_fitness(self, clone):
-        '''
+        """
         Update the fitness coefficient of the genome by traversing over every key region
-        '''
+        """
         fitness = 1
         ploidy = clone.get_ploidy()
         for chrname in self.regions:
@@ -154,9 +154,9 @@ class BaseRegionLibrary(BaseLibrary):
 
     # Needed
     def get_passenger_start_regions(self, cell, chromosome, size):
-        '''
+        """
         Returns a list of all possible start locations such that an event of a given size will not hit any driver regions
-        '''
+        """
         chrname = chromosome.name
         sequence = [get_reg_id(r) for r in chromosome.seq]
         n = len(sequence) - size + 1
@@ -278,9 +278,17 @@ class BaseRegionLibrary(BaseLibrary):
         return libraries
            
 class RandomRegionLibrary(BaseRegionLibrary):
-    '''
-    Initialize regions to be OG, TSG, EG, or NEU randomly based on given rates
-    '''
+    """The region selection model with randomly generated selection coefficients.
+    
+    This model is similar to the chromosome-arm model but operates at the region/gene level. In particular, each reference region i on chromosome k is assigned a selection coefficient in range (-CN_coeff, CN_coeff), where positive values correspond to OGs, negative values correspond to tumor suppressor genes TSGs, and zero corresponds to neutral regions (NEU). The fitness :math:`s_a(c)` of cell :math:`c` in site :math:`a` is computed as
+
+    .. math::
+    
+        s_a(c) = \\prod_{k=1}^K \\prod_{i=1}^{m_k} (1 + \\delta_{k,i})^{x_{k,i} / p_c},
+
+    where :math:`K` is the number of chromosomes, :math:`m_k` is the number of reference regions on chromosome :math:`k`, the :math:`\\delta`'s are selection coefficients, :math:`x_{k,i}` is the copy number of region :math:`i` on chromosome :math:`k` in cell  :math:`c`, and :math:`p_c` is cell ploidy.
+
+    """
     def initialize(
         self, 
         params: Optional[Parameters] = None, 
@@ -289,6 +297,15 @@ class RandomRegionLibrary(BaseRegionLibrary):
         TSG_r: Optional[float] = None, 
         EG_r: Optional[float] = None
     ):
+        """Method used to initialize selection coefficients. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+        Args:
+            params (Parameters, optional):
+            CN_coeff (float, optional):
+            OG_r (float, optional):
+            TSG_r (float, optional):
+            EG_r (float, optional):
+        """
         params = fill_params(params, CN_coeff=CN_coeff, OG_r=OG_r, TSG_r=TSG_r, EG_r=EG_r)
 
         NEU_r = 1 - params.OG_r - params.TSG_r - params.EG_r
@@ -311,14 +328,21 @@ class RandomRegionLibrary(BaseRegionLibrary):
         self.init_max_fit()
     
 class FittedRegionLibrary(BaseRegionLibrary):
-    '''
-    Initialize regions to be OG, TSG, or NEU from file.
-    '''
+    """Uses the same model as :code:`RandomRegionLibrary`, but the selection coefficients are given by the user.
+
+    """
     def initialize(
         self, 
         filepath: Optional[str] = None,
         delta: Optional[Dict] = None,
     ):
+        """Method used to initialize selection coefficients.
+
+        Args:
+            filepath (str, optional): Path to a tsv file containing the selection coefficients. The first entry is the chromosome name, followed by the selection coefficients in order of reference regions.
+            delta (dict, optional): Instead of passing a file, users can pass a dictionary where keys are chromosome names and values are an :math:`m_k`-length array of coefficients.
+        
+        """
         if delta is not None:
             if len(set(delta.keys()) - set(self.chrom_lens.keys())) > 0:
                 raise ValueError("Provided selection coefficient dictionary contains unrecognized chromosomes.")

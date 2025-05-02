@@ -1,7 +1,4 @@
 import numpy as np
-from collections import Counter
-
-from sistem.utilities.utilities import get_reg_id
 
 class Mutation:
     def __init__(self, chrom=None, allele=None, homolog_id=None, driver=True, gen=None):
@@ -57,10 +54,10 @@ def draw_num_SNV_events(ncells, SNV_rate):
     nmuts = np.random.binomial(ncells, SNV_rate)
     return nmuts
 
-def draw_passenger_counts(cell, CNA_pass_rate, SNV_pass_rate):
+def draw_passenger_counts(cell, focal_pass_rate, SNV_pass_rate):
     num_gen = cell.length
-    #npass_CNA = max(np.random.binomial(num_gen, CNA_pass_rate), 1)
-    npass_CNA = np.random.binomial(num_gen, CNA_pass_rate)
+    #npass_CNA = max(np.random.binomial(num_gen, focal_pass_rate), 1)
+    npass_CNA = np.random.binomial(num_gen, focal_pass_rate)
     npass_SNV = np.random.binomial(num_gen, SNV_pass_rate)
     return npass_CNA, npass_SNV
 

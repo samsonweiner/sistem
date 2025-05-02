@@ -5,6 +5,10 @@ from sistem.anatomy.base_anatomy import BaseAnatomy
 from sistem.selection import BaseLibrary
 
 class StaticAnatomy(BaseAnatomy):
+    """The static migration model.
+    
+    In this model, the probabiltiy of migrations from site :math:`a` to site :math:`b` depend on the distance :math:`d(a,b)`, but are the same for each cell in the site at each generation. 
+    """
     def __init__(self, libraries: Optional[Union[BaseLibrary, List[BaseLibrary]]], **kargs):
         super().__init__(libraries=libraries, **kargs)
         self.tmatrix = None

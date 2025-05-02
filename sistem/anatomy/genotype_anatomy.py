@@ -3,6 +3,17 @@ import numpy as np
 from sistem.anatomy.base_anatomy import BaseAnatomy
 
 class GenotypeAnatomy(BaseAnatomy):
+    """The genotype migration model.
+    
+    In this model, the probability of cell :math:`c` migrating from site :math:`a` to site :math:`b` increases as :math:`c` gains beneficial mutations with respect to the selection landscape of :math:`b`. In particular, distance is defined as
+
+    .. math::
+
+        d(a,b) = \\Big(\\log{\\frac{s_b(c)}{\\hat{s}_{b}}}\\Big)^{-1},
+
+    where :math:`\\hat{s}_{b}` is the fitness of a non-mutated cell in site :math:`b`. In other words, the probability that cell :math:`c` successfully migrates to :math:`a` site :math:`b` increases as the cell acquires beneficial mutations. When used in conjunction with site-specific selection libraries, migration probabilities can also reflect compatibility with the the fitness landscape :math:`b`.
+
+    """
     def __init__(self, **kargs):
         super().__init__(**kargs)
         self.initialized = True

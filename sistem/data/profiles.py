@@ -1,9 +1,8 @@
 import numpy as np
 import os
-from typing import Optional
 
 from sistem.data.utils import bin_region_values, get_mutated_basepairs, count_region_CNs
-from sistem.lineage.mutation import CNA, SNV
+from sistem.lineage import CNA, SNV
 from sistem.utilities.utilities import get_reg_id, get_bin_coordinates, sort_chrom_names
 from sistem.utilities.IO import read_fasta
 
@@ -48,7 +47,7 @@ def CNPs_to_tsv(profiles, coords, chrnames, out_path):
     cell_names = list(profiles.keys())
     cell_names.sort()
 
-    headers = ['cell', 'chrom', 'start', 'end', 'hap CN', 'total CN']
+    headers = ['Cell/Clone', 'Chrom', 'Start', 'End', 'Hap CN', 'Total CN']
     rows = []
     for chrname in chrnames:
         for i, (start, end) in enumerate(coords[chrname]):
@@ -62,7 +61,7 @@ def CNPs_to_tsv(profiles, coords, chrnames, out_path):
         for row in rows:
             f.write(row)
 
-def bin_region_CNs(CNs, region_len, bin_size):
+def bin_region_CNs(CNs, region_len, bin_size, total=False):
     """
     Partitions region CNs into continuous bins with the resulting bin CN being the average copy number of all regions belonging to that bin. The ratio bin_size/region_len may be a float value, in which case a weighted average is used and continuity of regions is maintained.
 
@@ -78,7 +77,10 @@ def bin_region_CNs(CNs, region_len, bin_size):
     r2b = bin_size/region_len
 
     for chrname in CNs:
-        bin_CNs[chrname] = [bin_region_values(CNs[chrname][0], r2b), bin_region_values(CNs[chrname][1], r2b)]
+        if total:
+            bin_CNs[chrname] = bin_region_values(CNs[chrname], r2b)
+        else:
+            bin_CNs[chrname] = [bin_region_values(CNs[chrname][0], r2b), bin_region_values(CNs[chrname][1], r2b)]
     
     return bin_CNs
 
@@ -196,3 +198,69 @@ def save_clonal_readcounts(mutated_basepairs, readcounts, site_ids, out_path):
             counts = [f"{readcounts[s][i][0]},{readcounts[s][i][1]}" for s in range(len(site_ids))]
             f.write(f"{chrname}\t{pos}\t{'\t'.join(counts)}\n")
 
+def site_CN_averages(tree, out_dir, bin_size):
+    chrom_lens = tree.root.library.chrom_lens
+    region_len = tree.root.library.region_len
+    chrnames = sort_chrom_names(chrom_lens.keys())
+
+    bin_coords = get_bin_coordinates(chrom_lens, bin_size)
+
+    observed_clones = [node for node in tree.iter_leaves()]
+    nsites = len(set([clone.site for clone in observed_clones]))
+    
+    for clone in observed_clones:
+        if 'count' not in clone.info:
+            raise ValueError("Leaves in Tree have not been initialized with a 'count' key/pair in the info attribute. Ensure you have generated the tree with GrowthSimulator.simulate_clonal_lineage, as this function does not work on trees generated with GrowthSimulator.simulate_singlecell_lineage.")
+
+    cell_counts = {}
+    for s in range(nsites):
+        cell_counts[s] = {}
+        for clone in observed_clones:
+            if clone.site == s:
+                cell_counts[s][clone] = clone.info['count']
+
+    #Add diploid fractions to metastatic sites
+    dip = tree.find('diploid')
+    if dip is not None:
+        dip_count = cell_counts[0][dip]
+        prim_tumor_cells = sum(list(cell_counts[0].values())) - dip_count
+        ratio = dip_count / prim_tumor_cells
+        for s in range(1, nsites):
+            met_tumor_cells = sum(list(cell_counts[s].values()))
+            if met_tumor_cells > 0:
+                num_dip = max(round(ratio*met_tumor_cells), 1)
+                cell_counts[s][dip] = num_dip
+    
+    CN_averages = {s: {} for s in range(nsites)}
+    for s in range(nsites):
+        cur_clones = list(cell_counts[s].keys())
+        weights = [cell_counts[s][clone] for clone in cur_clones]
+
+        profiles = {}
+        for clone in cur_clones:
+            region_profiles = count_region_CNs(clone, total=True)
+            profiles[clone] = bin_region_CNs(region_profiles, region_len, bin_size, total=True)
+        
+        for chrname in chrnames:
+            CNs_flat = np.array([profiles[clone][chrname] for clone in cur_clones])
+            chr_CN_avgs = np.average(CNs_flat, axis=0, weights=weights)
+            CN_averages[s][chrname] = chr_CN_avgs
+    
+    site_ids = []
+    for s in range(nsites):
+        cur_clones = [clone.name for clone in cell_counts[s].keys()]
+        if 'diploid' in cur_clones:
+            cur_clones.remove('diploid')
+        name = cur_clones[0]
+        site_id = ''
+        for char in name[:2]:
+            if char.isupper():
+                site_id += char
+        site_ids.append(site_id)
+
+    with open(os.path.join(out_dir, 'CN_averages.tsv'), 'w+') as f:
+        f.write(f"Chrom\tStart\tEnd\tSite\tCN\n")
+        for chrname in chrnames:
+            for i, (start, end) in enumerate(bin_coords[chrname]):
+                for s in range(nsites):
+                    f.write(f"{chrname}\t{start}\t{end}\t{s}\t{CN_averages[s][chrname][i]}\n")

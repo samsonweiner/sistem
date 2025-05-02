@@ -15,6 +15,24 @@ class Attributes:
     blacklisted_regions: Optional[Dict] = field(default=None)
 
 class BaseLibrary(ABC):
+    """Abstract base class for selection libraries. If creating a custom selection library, users must create a child class which inherits from this class. See :ref:`Parameters <parameters>` for an explanation of the constructor parameters.
+
+    Args:
+        params (Parameters, optional):
+        chrom_lens (dict, optional):
+        arm_ratios (float, dict, optional):
+        region_len (int, optional):
+        max_distinct_driv_ratio (float, optional):
+        max_region_CN (int, optional):
+        max_region_SNV (int, optional):
+        max_ploidy (int, float, optional):
+        min_ploidy (int, float, optional):
+
+    Attributes:
+        is_driver_region_model (bool): True if individual regions can be drivers, False otherwise.
+        is_driver_SNV_model (bool): True if individual SNVs can impact fitness, False otherwise.
+
+    """
     is_driver_region_model = None
     is_driver_SNV_model = None
 
@@ -30,11 +48,6 @@ class BaseLibrary(ABC):
         max_ploidy: Optional[Union[int, float]] = None, 
         min_ploidy: Optional[Union[int, float]] = None, 
     ):
-        #if params is None and chrom_lens is None:
-        #    raise ValueError(
-        #        'Must provide valid chrom_lens argument or a Parameters object containing this information.'
-        #    )
-        
         params = fill_params(params, chrom_lens=chrom_lens, arm_ratios=arm_ratios, region_len=region_len, max_distinct_driv_ratio=max_distinct_driv_ratio, max_region_CN=max_region_CN, max_region_SNV=max_region_SNV, max_ploidy=max_ploidy, min_ploidy=min_ploidy)
         self.chrom_lens = params.chrom_lens
         self.region_len = params.region_len
@@ -76,20 +89,26 @@ class BaseLibrary(ABC):
 
     @abstractmethod
     def compute_fitness(self, clone):
-        pass
+        """Computes the fitness of a clone.
+        
+        """
 
     @abstractmethod
     def init_base_fit(self):
+        """Sets the base_fit attribute to the fitness of an unmutated Cell.
+        """
         pass
 
     @abstractmethod
     def init_max_fit(self):
+        """Sets the max_fit attribute to an estimate of the maximum possible fitness.
+        
+        """
         pass
 
     @abstractmethod
     def check_viability(self, clone):
-        '''
-        Checks if clone passes viability checkpoints based on mutated driver stats. 
+        """Checks if clone passes viability checkpoints based on mutated driver stats. 
 
         Args:
             clone (Clone): The clone object in question.
@@ -97,13 +116,12 @@ class BaseLibrary(ABC):
         Returns:
             (bool): True if passes, False if not.
         
-        '''
+        """
         pass
 
     @abstractmethod
     def update_stats(self, clone, chromosome, start, end, mag=1):
-        '''
-        Function which, upon a mutation occurring, updates intermediate stats stores in the clones Attributes object to make fitness computation more efficient.
+        """Function which, upon a mutation occurring, updates intermediate stats stores in the clones Attributes object to make fitness computation more efficient.
 
         Arguments:
             clone (Clone): The clone undergoing a mutation.
@@ -111,22 +129,40 @@ class BaseLibrary(ABC):
             start (int): The index of the starting region.
             end (int): The index of the ending region.
             mag (int): If the event is a CNA (start != end), then it is the number of copies being gained. If the event is an SNV (start == end), then it interprets an SNV being added in region start.
-        '''
+        """
         pass
 
     @abstractmethod
     def init_attributes(self, clone):
-        pass
+        """Creates an Attributes object for a clone and updates it to reflect its genome state.
+
+        Args:
+            clone (Clone): The clone object in question.
+        """
 
     @abstractmethod
     def get_driver_start_regions(self, cell, chromosome, size):
-        pass
+        """Identifies the possible start region indices of a driver event.
+
+        Args:
+            cell (Cell): The current cell.
+            chromosome (Chromosome): The current chromosome.
+            size (int): The size in number of regions of the event (1 for SNVs, >=1 for CNAs).
+        """
 
     @abstractmethod
     def get_passenger_start_regions(self, cell, chromosome, size):
-        pass
+        """Identifies the possible start region indices of a passenger event.
+
+        Args:
+            cell (Cell): The current cell.
+            chromosome (Chromosome): The current chromosome.
+            size (int): The size in number of regions of the event (1 for SNVs, >=1 for CNAs).
+        """
 
     @abstractmethod
     def initialize(self, **kwargs):
-        """Function used to initialize the selection coefficients."""
+        """Function used to initialize the selection coefficients.
+        
+        """
         pass

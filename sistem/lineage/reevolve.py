@@ -1,11 +1,13 @@
 import copy
 
 from sistem.selection import Attributes
+from sistem.selection.arm_library import BaseArmLibrary
 from sistem.genome.utils import ConvertToSNVGenome
+from sistem.lineage.mutation import CNA, SNV
 import sistem.lineage.mutation as mut
 from sistem.utilities.utilities import combine_dicts, get_reg_id
 
-def evolve_tree_with_passengers(tree, igenome, CNA_pass_rate, SNV_pass_rate, focal_gain_rate, length_mean, mag_mean, no_leaves=False):
+def evolve_tree_with_passengers(tree, igenome, focal_pass_rate, SNV_pass_rate, focal_gain_rate, length_mean, mag_mean, no_leaves=False):
     """
     Master function for re-evolving a tree with passenger mutations. Tree must be resolved with appropriate branch lengths.
 
@@ -25,7 +27,7 @@ def evolve_tree_with_passengers(tree, igenome, CNA_pass_rate, SNV_pass_rate, foc
 
     reevolve_tree(tree)
 
-    if not tree.root.library.is_driver_region_model:
+    if not tree.root.library.is_driver_region_model and isinstance(tree.root.library, BaseArmLibrary):
         get_blacklisted_regions(tree.root)
 
     for cell in tree.iter_descendants(include_root=False):
@@ -33,7 +35,7 @@ def evolve_tree_with_passengers(tree, igenome, CNA_pass_rate, SNV_pass_rate, foc
             cell.inherit()
         else:
             inherit_with_passengers(cell)
-            npass_CNA, npass_SNV = mut.draw_passenger_counts(cell, CNA_pass_rate, SNV_pass_rate)
+            npass_CNA, npass_SNV = mut.draw_passenger_counts(cell, focal_pass_rate, SNV_pass_rate)
             for _ in range(npass_CNA):
                 mut.gen_focal_event(cell, focal_gain_rate, length_mean, mag_mean, driver=False)
             if npass_SNV > 0:
@@ -53,7 +55,7 @@ def reevolve_tree(tree):
             apply_event(node, event)
 
 def apply_event(cell, event):
-    if isinstance(event, mut.CNA):
+    if isinstance(event, CNA):
         if event.category == 'WGD':
             cell.WGD(record_event=False)
         else:
@@ -72,7 +74,7 @@ def apply_event(cell, event):
                 cell.chromosomal_duplication(cur_chromosome, record_event=False)
             elif event.category == 'chromosomal_deletion':
                 cell.chromosomal_deletion(cur_chromosome, record_event=False)
-    elif isinstance(event, mut.SNV):
+    elif isinstance(event, SNV):
         cur_chromosome = cell.genome.find(event.chrom, event.homolog_id)
         event.region = cur_chromosome.seq[event.index]
         cell.add_SNV(cur_chromosome, event.index, event.position, event.bp, record_event=False)
@@ -93,7 +95,7 @@ def get_blacklisted_regions(node):
     blacklisted_regions = combine_dicts(*child_regions)
 
     for event in node.events:
-        if isinstance(event, mut.CNA):
+        if isinstance(event, CNA):
             if event.category == 'focal_amplification' or event.category == 'focal_deletion':
                 if event.chrom not in blacklisted_regions:
                     blacklisted_regions[event.chrom] = {}
@@ -134,7 +136,7 @@ def inherit_with_passengers(cell):
     cell.inherit()
     # If there are driver events, there is always only one
     for event in cell.events:
-        if isinstance(event, mut.CNA):
+        if isinstance(event, CNA):
             if event.category == 'WGD':
                 cell.WGD(record_event=False)
             else:
@@ -149,7 +151,7 @@ def inherit_with_passengers(cell):
                     cell.arm_deletion(cur_chromosome, event.arm, record_event=False)
                 elif event.category == 'focal_amplification' or event.category == 'focal_deletion':
                     inherit_with_focal(event, cur_chromosome, cell.library)
-        elif isinstance(event, mut.SNV):
+        elif isinstance(event, SNV):
             cur_chromosome = cell.genome.find(event.chrom, event.homolog_id)
             inherit_with_SNV(event, cur_chromosome, cell.library)
 

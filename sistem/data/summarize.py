@@ -1,7 +1,4 @@
 import numpy as np
-import string
-from itertools import product
-from collections import defaultdict
 
 def extract_largest_clones(gs):
     '''

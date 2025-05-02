@@ -10,9 +10,6 @@ from sistem.utilities.utilities import get_reg_id
 from sistem.parameters  import Parameters, fill_params
 
 class BaseArmLibrary(BaseLibrary):
-    '''
-    Base selection library
-    '''
     is_driver_region_model = False
     is_driver_SNV_model = False
 
@@ -102,7 +99,7 @@ class BaseArmLibrary(BaseLibrary):
         self.max_fit = cur_fit
     
     def check_viability(self, clone):
-        '''
+        """
         Checks if clone passes viability checkpoints based on mutated driver stats. 
 
         Args:
@@ -111,7 +108,7 @@ class BaseArmLibrary(BaseLibrary):
         Returns:
             (bool): True if passes, False if not.
         
-        '''
+        """
         max_chrom_CNs = [0]
         for chrname in self.regions:
             c = Counter()
@@ -250,14 +247,29 @@ class BaseArmLibrary(BaseLibrary):
         return libraries
 
 class RandomArmLibrary(BaseArmLibrary):
-    '''
-    Initialize each chromosome arm a fitness coefficient randomly.
-    '''
+    """The chromosome-arm selection model with randomly generated selection coefficients.
+    
+    Under this model, each chromosome-arm is assigned a random selection coefficient in the range (-CN_coeff, CN_coeff). Arms with a positive coefficient correspond to those with a greater balance of OGs to TSGs, while arms with a negative coefficient will have a greater balance of TSGs to OGs. The fitness :math:`s_a(c)` of cell :math:`c` in site :math:`a` is computed as
+
+    .. math::
+    
+        s_a(c) = \\prod_{k=1}^K \\prod_{arm \\in \\{p,q\\}} (1 + \\delta_{k,arm})^{x_{k,arm} / p_c},
+
+    where :math:`K` is the number of chromosomes, :math:`\\delta` are selection coefficients, :math:`x_{k,arm}` is the average copy number of chromosome arm :math:`k,arm` in cell :math:`c`, and :math:`p_c` is cell ploidy.
+
+    """
     def initialize(
         self, 
         params: Optional[Parameters] = None, 
         CN_coeff: Optional[float] = None
     ):
+        """Method used to initialize selection coefficients. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+
+        Args:
+            params (Parameters, optional):
+            CN_coeff (float, optional):
+        
+        """
         params = fill_params(params, CN_coeff=CN_coeff)
 
         arm_deltas = {}
@@ -269,14 +281,21 @@ class RandomArmLibrary(BaseArmLibrary):
         self.init_max_fit()
 
 class FittedArmLibrary(BaseArmLibrary):
-    '''
-    Initialize each chromosome arm a fitness coefficient from dict or file.
-    '''
+    """Uses the same model as :code:`RandomArmLibrary`, but the selection coefficients are given by the user.
+    
+    """
     def initialize(
         self, 
         filepath: Optional[str] = None,
         delta: Optional[Dict] = None,
     ):
+        """Method used to initialize selection coefficients.
+
+        Args:
+            filepath (str, optional): Path to a tsv file containing the selection coefficients. The first entry is the chromosome name, followed by the selection coefficient of the short and long arm, respectively.
+            delta (dict, optional): Instead of passing a file, users can pass a dictionary where keys are chromosome names and values are a 2-length array of coefficients.
+        
+        """
         if delta is not None:
             if len(set(delta.keys()) - set(self.chrom_lens.keys())) > 0:
                 raise ValueError("Provided selection coefficient dictionary contains unrecognized chromosomes.")

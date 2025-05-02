@@ -1,7 +1,7 @@
 import string
 from itertools import product
 
-from sistem.lineage.cell import Cell, Clone
+from sistem.lineage.cell import Cell
 
 def get_ancestors(current):
     """

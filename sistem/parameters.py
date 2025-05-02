@@ -3,7 +3,7 @@ import warnings
 from dataclasses import dataclass, field
 from typing import Optional, Union, List, Dict
 
-from sistem.genome.utils import hg38_chrom_lengths_from_cytoband, get_chrom_lens_from_reference
+from sistem.genome import hg38_chrom_lengths_from_cytoband, get_chrom_lens_from_reference
 
 @dataclass
 class Parameters:
@@ -11,13 +11,66 @@ class Parameters:
     Global parameter values for a simulation experiment.
 
     Attributes:
-        N0 (int): The initial number of cells at time t=0.
-        growth_rate (float): The baseline exponential growth rate.
-        max_growth_rate_multiplier: This parameter multiplied by growth_rate represents the maximum exponential growth rate of metastatic tumors.
-        capacities (Union[int, List[str]]): The carrying capacity (max number of cells) of each anatomical site. 
+        N0 (int): The initial number of cells at time t=0 and upon site seeding. **Default: 10.**
+        growth_rate (float): The primary site exponential growth rate. **Default: 0.0051.**
+        max_growth_rate_multiplier (int, float): This parameter is used to increase the exponential growth rates in metastatic sites. Metastatic growth rates are at minimum *growth_rate* but are increased based on the fitness of the cell which initiates seeding, up to a maximum of *growth_rate* * *max_growth_rate_multiplier*. **Default: 5.**
+        capacities (int, list): The carrying capacity (max number of cells) of each anatomical site. If an integer is provided, all sites have that same carrying capacity. Also accepts a list of carrying capacities, one for each site. **Default: 1e7.**
+        epsilon (float): A per-cell per-generation baseline migration probability to a site. **Default: 1e-8.**
+
+        ref (str, optional): Path to an input reference genome in fasta format. Can be used to initialize chromosome sizes, but is required for generating synthetic sequencing reads. **Default: None.**
+        alt_ref (str, optional): Path to an optionally alternate reference genome in fasta format. Allele 0 utilizes ref, while Allele 1 utilizes alt_ref. Use if the goal is to generate allele-specific synthetic sequencing reads. **Default: None.**
+        chrom_names (list, optional): A list of chromosome names to use in the reference sequence(s). Only necessary to specify if the reference genome contains superfluous chromosomes which should not be included in the genome. **Default: None.**
+        chrom_lens (dict, int, optional): A dictionary describing the size of the genome where keys are chromosome names and values are chromosome lengths in number of base pairs. If kept as None, will automatically populate with chr1-chr22 and lengths derived from the hg38 human reference genome. If ref is specified, will automatically populate based on the provided sequences. Additionally, if an integer is passed, then all chromosomes 1-*num_chrom* (see below) will have the same given length. **Default: None.**
+        num_chrom (int): The number of chromosomes in the genome. Use only if an int is passed to *chrom_lens*, or if you want to use the first *num_chrom* human reference chromosomes if *chrom_lens* is set to None. Otherwise, will update accordingly. **Default: 22.**
+        region_len (int): SISTEM utilizes a simplified genome representation whereby chromosome sequences are partitioned into non-overlapping regions of uniform size *region_len* (in base pairs). Higher values reduce memory burden, while lower values increase simulation resolution. **Default: 5e6.**
+
+        arm_ratios (float, dict): The ratio of the small chromosome arm length to the total chrosome length. If chrom_lens is None, will utilize arm ratios derived from the hg38 human reference genome. Can pass a dictionary where keys are chromosome names and values are ratios, or a single ratio used by all chromosomes. **Default: 0.5.**
+
+        focal_driver_rate (float): The probability of acquiring a driver focal (segmental) CNA at each generation. **Default: 1e-4.**
+        focal_pass_rate (float): The probability of acquiring a passenger focal (segmental) CNA at each generation. **Default: = 0.01.**
+        length_mean (int, float): The mean number of regions a focal CNA spans. Length is drawn from an exponential distribution. **Default = 1.5.**
+        focal_gain_rate (float): The probability that a focal CNA is amplification (gain) versus a deletion (loss) **Default = 0.5.**
+        mag_mean (int, float): The mean number of additional copies gained during a focal amplification CNA. Amplification magnitude is drawn from a geometric distribution. Default = 1.2.**
+        SNV_driver_rate (float): The probability of acquiring a driver SNV at each generation. **Default: 0.**
+        SNV_pass_rate (float): The probability of acquiring a passenger SNV at each generation. **Default: 0.01.**
+        arm_rate (float): The probability of acquiring a chromosome-arm CNA at each generation. **Default: 1e-5.**
+        chromosomal_rate (float): The probability of acquiring a whole-chromosomal CNA at each generation. **Default: 1e-6.**
+        chrom_dup_rate (float): The probability that a chromosome-arm CNA or a whole-chromosomal CNA is a duplication versus a deletion. **Default: 1e-5.**
+        WGD_rate (float): The probability of acquiring a WGD at each generation. **Default: 1e-8.**
+
+        CN_coeff (float): The maximum CN selection coefficient magnitude. Used only for random initialization. **Default: 0.25.**
+        SNV_coeff (float): The maximum region SNV selection coefficient magnitude. Used only for random initialization. **Default: 0.1.**
+        OG_r (float): The ratio of regions which are OGs. Used only for random initialization in the Region/Hybrid Selection Model. **Default: 0.05.**
+        TSG_r (float): The ratio of regions which are TSGs. Used only for random initialization in the Region/Hybrid Selection Model.. **Default: 0.05.**
+        EG_r (float): The ratio of regions which are EGs (essential genes). Used only for random initialization in the Hybrid Selection Model. **Default: 0.05.**
+        alter_prop (float): Parameter for creating site-specific metastatic libraries. Represents the fraction of driver selection coefficients to alter in each site if method is 'random', or of the farthest site if method is 'distance', with the number of altered coefficients scaled accordingly for the rest. **Default: 0.3.**
+
+        max_region_CN (int): Viability checkpoint parameter. Represents the maximum CN of a driver region. **Default: 10.**
+        max_region_SNV (int): Viability checkpoint parameter. Represents the maximum number of driver SNVs in a single region. **Default: 10.**
+        max_ploidy (int, float): Viability checkpoint parameter. Represents the maximum ploidy of a cell. **Default: 8.**
+        min_ploidy (int, float): Viability checkpoint parameter. Represents the minimum ploidy of a cell. **Default: 1.5.**
+        max_distinct_driv_ratio (float): Viability checkpoint parameter. Represents the maximum number of distinct drivers which can be mutated. **Default: 0.8.**
+
+        t_max (int): The maximum number of generations to run. **Default: 6000.**
+        min_detectable (int): Terminates the growth simulator when the number of cells present in each anatomical site is atleast *min_detectable*. **Default: 5e-5.**
+        ncells_prim (int): The number of cells to sample from the primary site. **Default: 100.**
+        ncells_meta (int): The number of cells to sample from the metastatic sites. **Default: 100.**
+        ncells_normal (int): The number of normal cells to diluate the primary site with. If generating clonal lineages, a relative number of normal cells will be sampled from the metastatic sites as well. Passing 1 will add a convenient normal cell outgroup to the simulated lineage tree. **Default: 1.**
+        min_mut_fraction (float): In SISTEM, clones are defined by cells with a unique sequence of driver mutations, but this loose definition means that distinct 'clones' appearing in the clonal lineage tree may differ by a just a few small mutations. The *min_mut_fraction* parameter can help make the clones present in the tree more distinct. It describes the minimum frequency a clone's genotype must occur in the sampled cells to remain in the tree. If possible, multiple clones in a subtree will merge together with a common genotype to remain above *min_mut_fraction*, otherwise they are pruned. **Default: 0.05**.
+ 
+        bin_size (int, optional): The size in base pairs of the copy number windows/segments in the final output profiles. Essentially groups consecutive regions together into larger bins and computes the mean. If kept as None, the bin size will be set equal to the *region_len*. This will be desirable for the majority of cases. Only specify if simulating with a region length that is smaller than practical (e.g. if *region_len* is less than 100kbp for single-cell data). **Default: None.**
+        coverage (int, float): The average number of reads which cover any given base pair in the genome. When used to generate single-cell read counts or DNA-seq reads, it is recommended to use a low value (<0.2), whereas if used to generate bulk read counts, it is recommended to use a high value (>50). **Default: 0.1.**
+        read_len (int): The length of the paired-end reads. Together with coverage, used to compute expected read counts. **Default: 150.**
+        seq_error (float): Per-base pair sequencing error rate. Only used for generating scDNA-seq reads **Default: 0.02.**
+        lorenz_y (float): Used to introduce coverage non-uniformity when generating single-cell read counts and DNA-seq. In a nutshell, coverage uniformity is parameterized by a point on the lorenz curve (0.5, *lorenz_y*). Default value of 0.5 means maximally uniform, and decreasing *lorenz_y* down to 0 will decrease uniformity. Only specify if evaluating conditions under non-uniform coverage. Be aware that this parameter is extremely sensitive, and values <=0.4 will lead to highly non-uniform distributions. **Default: 0.5.**
+
+        out_dir (str): The path to the output directly. **Default: 'out'.**
+        log_path (str, optional): The path to the log file. By default, will write to *out_dir*/sim.log. **Default: None.**
+        num_processors (int): Number of processors to use when generating synthetic scDNA-seq reads. Will not speed up the other steps of the simulator. **Default: 1.**
+
     """
     N0: int = 10
-    growth_rate: float = 0.005046761847658182
+    growth_rate: float = 0.0051
     max_growth_rate_multiplier: Union[int, float] = 5
     capacities: Union[int, List[int]] = field(default_factory=lambda: [1e7])
     nsites: int = 1
@@ -28,7 +81,7 @@ class Parameters:
     chrom_names: Optional[List[str]] = None
     chrom_lens: Optional[Union[int, Dict]] = None
     num_chroms: int = 22
-    region_len: int = field(default=int(1e6))
+    region_len: int = field(default=int(5e6))
     arm_ratios: Union[float, Dict] = field(default=0.5)
 
     focal_driver_rate: float = 1e-4
@@ -41,32 +94,32 @@ class Parameters:
     length_mean: Union[int, float] = 1.5
     mag_mean: Union[int, float] = 1.2
 
-    CNA_pass_rate: float = 0.01
+    focal_pass_rate: float = 0.01
     SNV_pass_rate: float = 0.01
 
     # region library
-    CN_coeff: float = 0.1
+    CN_coeff: float = 0.25
     SNV_coeff: float = 0.1
     OG_r: float = 0.05
     TSG_r: float = 0.05
     EG_r: float = 0.05
-    alter_prop: float = 0.1
+    alter_prop: float = 0.3
 
-    max_region_CN: float = 10
-    max_region_SNV: float = 10
+    max_region_CN: int = 10
+    max_region_SNV: int = 10
     max_ploidy: Union[int, float] = 8
     min_ploidy: Union[int, float] = 1.5
-    max_distinct_driv_ratio: float = 0.75
+    max_distinct_driv_ratio: float = 0.8
 
     t_max: int = 6000
     min_detectable: int = 5e5
     ncells_prim: int = 100
     ncells_meta: int = 100
     ncells_normal: int = 1
-    min_mut_fraction: float = 0
+    min_mut_fraction: float = 0.05
 
     bin_size: Optional[int] = None
-    coverage: Union[int, float] = 1
+    coverage: Union[int, float] = 0.1
     read_len: int = 150
     seq_error: float = 0.02
     lorenz_y: float = 0.5
@@ -82,6 +135,15 @@ class Parameters:
             warnings.warn("Extremely large number of sites. Consider choosing a smaller value.")
 
         self._process_genome()
+
+        if self.CN_coeff < 0 or self.CN_coeff > 1:
+            raise ValueError("CN_coeff must be between 0-1.")
+        
+        if self.SNV_coeff < 0 or self.SNV_coeff > 1:
+            raise ValueError("SNV_coeff must be between 0-1.")
+
+        if self.alter_coeff < 0 or self.alter_coeff > 1:
+            raise ValueError("alter_coeff must be between 0-1.")
 
         if self.growth_rate <= 0:
             raise ValueError("growth_rate must be greater than 0.")

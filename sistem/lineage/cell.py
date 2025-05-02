@@ -3,7 +3,7 @@ import numpy as np
 from typing import Optional
 
 from sistem.genome.genome import Genome
-from sistem.selection.base_library import BaseLibrary, Attributes
+from sistem.selection import BaseLibrary, Attributes
 from sistem.lineage.mutation import CNA, SNV
 from sistem.lineage.tree import Node
 
