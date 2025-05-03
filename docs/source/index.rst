@@ -8,7 +8,7 @@ SISTEM documentation
 
 **SISTEM** is an open-source Python package for simulating tumor growth, metastasis, and DNA-seq data under genotype-driven selection. It can be used to generate allele-specific copy number aberration (CNA) profiles, single-nucleotide variant (SNV) profiles, bulk-sequencing read counts, single-cell allele-specific read counts, and single-cell DNA sequencing reads, in addition to ground truth clone trees, single-cell lineage trees, and migration graphs. This makes **SISTEM** ideal for benchmarking methods for mutation detection, phylogenetic inference, and migration history inference. Additionally, **SISTEM** provides a variety of customizable selection models and migration models, making it a suitable framework for other applications such as estimating parameters from real datasets.
 
-This manual offers instructions for :ref:`installing <install>` and :ref:`using <quickstart>` **SISTEM** and contains example workflows. You can find a complete list of parameters :ref:`here <parameters>`. If you would like to learn more about the underlying algorithms used in **SISTEM**, please see our paper (yet to be posted).
+This manual offers instructions for :ref:`installing <install>` and using **SISTEM** and contains example workflows. You can find an overview of the key steps in the :ref:`quickstart <quickstart>` guide and a complete list of parameters :ref:`here <parameters>`. If you would like to learn more about the underlying algorithms used in **SISTEM**, please see our paper (yet to be posted).
 
 .. `Bioinformatics paper <https://www.youtube.com>`_.
 
@@ -30,7 +30,7 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
-   :caption: API Core
+   :caption: API core and features
 
    selection
    migration
@@ -44,6 +44,6 @@ Contents:
    :caption: Tutorials and examples
 
    cell_lineage
-   clone_lineage
+   bulk_profiles
    migration_history
    sequencing_reads
