@@ -41,6 +41,7 @@ class BaseAnatomy(ABC):
         self, 
         libraries: Optional[Union[BaseLibrary, List[BaseLibrary]]] = None,
         params: Optional[Parameters] = None,
+        *,
         nsites: Optional[int] = None, 
         growth_rate: Optional[float] = None, 
         max_growth_rate_multiplier: Optional[Union[int, float]] = None, 
@@ -166,17 +167,14 @@ class BaseAnatomy(ABC):
         alter_prop: Optional[float] = None, 
         CN_coeff: Optional[float] = None
     ):
-        """Creates site-specific selection libraries. This method is optional, and the anatomy class defaults to using the same selection library for all sites. See :ref:`Parameters <parameters>` for an explanation of the parameters.
+        """Creates site-specific selection libraries. The anatomy class defaults to using the same selection library for all sites, and this method is only used if site-specific selection is desired. There are two options for the *method* parameter: 'random' or 'distance'. If random, the number of selection coefficients in each metastatic site will differ from the primary site with a ratio near *alter_prop*. If distance, the number of selection coefficients that differ between all pairs of sites will roughly align with the pairwise distance matrix created with the :code:`initialize_distance` method See :ref:`Parameters <parameters>` for an explanation of the parameters.
 
         Args:
             method (str): The method used to create the metastatic libraries. Must be either 'random' or 'distance'.
             params (Parameters, optional):
             alter_prop (float, optional):
             CN_coeff (float, optional):
-
-        Raises:
-            ValueError: _description_
-            AttributeError: _description_
+            
         """
         params = fill_params(params, alter_prop=alter_prop, CN_coeff=CN_coeff)
 
@@ -218,8 +216,8 @@ class SimpleAnatomy(BaseAnatomy):
     """The simplest migration model. Use for simulating single-site experiments, or if you want an identical fixed migration probability to each site for every cell at every generation (:math:`d(a,b)=1` for all :math:`a,b`).
 
     """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, libraries: Optional[Union[BaseLibrary, List[BaseLibrary]]], **kwargs):
+        super().__init__(libraries=libraries, **kwargs)
         self._tmatrix = np.array([[self.eps for j in range(i)] + [0] + [self.eps for j in range(i+1, self.nsites)] for i in range(self.nsites)])
         self.initialized = True
 

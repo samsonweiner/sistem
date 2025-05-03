@@ -13,6 +13,7 @@ from sistem.data.profiles import save_singlecell_readcounts, save_clonal_readcou
 from sistem.lineage import Tree
 from sistem.parameters import Parameters, fill_params
 from sistem.utilities.IO import read_fasta
+from sistem.utilities.utilities import init_mbit
 
 # Draw readcounts for each bin
 def draw_readcounts_nonuniform(num_windows, Aa, Bb, mean_rc, interval=5):
@@ -40,6 +41,9 @@ def gen_reads_cell(
     regions = cell.library.regions
     region_len = cell.library.region_len
 
+    max_region_id = max(regions.values())
+    init_mbit(max_region_id.bit_length())
+
     last_region_lens = {chrname: int(l % region_len) for chrname,l in chrom_lens.items()}
 
     read_dir = os.path.join(out_dir, 'reads')
@@ -51,45 +55,47 @@ def gen_reads_cell(
 
     for chrname in chrom_lens:
         for chromosome in cell.genome[chrname]:
-            cur_ref = refs[chromosome.allele]
-            cur_prefix = prefixes[chromosome.allele]
-            cur_readcounts = readcounts[chromosome]
+            if len(chromosome) > 0:
+                cur_ref = refs[chromosome.allele]
+                cur_prefix = prefixes[chromosome.allele]
+                cur_readcounts = readcounts[chromosome]
 
-            chrom_fa_path = f"{cur_prefix}.{chrname}_{chromosome.homolog_id}.fa"
-            build_cell_ref(chromosome, cur_ref, regions[chrname], region_len, chrom_fa_path)
+                chrom_fa_path = f"{cur_prefix}.{chrname}_{chromosome.homolog_id}.fa"
+                build_cell_ref(chromosome, cur_ref, regions[chrname], region_len, chrom_fa_path)
 
-            start,end = 0,0
-            for i,r in enumerate(chromosome.seq):
-                q = get_reg_id(r)
-                rc = cur_readcounts[i]
-                if q == regions[chrname] - 1:
-                    end += last_region_lens[chrname]
-                else:
-                    end += region_len
-                
-                region_fa_path = f"{chrom_fa_path[:-3]}_{str(start)}_{str(end)}.fa"
-                with open(region_fa_path, 'w+') as f:
-                    call = subprocess.run(['samtools', 'faidx', chrom_fa_path, f"{chrname}:{int(start)}-{int(end)}"], stdout=f)
+                start,end = 0,0
+                for i,r in enumerate(chromosome.seq):
+                    q = get_reg_id(r)
+                    rc = cur_readcounts[i]
+                    if q == regions[chrname] - 1:
+                        end += last_region_lens[chrname]
+                    else:
+                        end += region_len
+                    
+                    region_fa_path = f"{chrom_fa_path[:-3]}_{int(start)}_{int(end)}.fa"
+                    with open(region_fa_path, 'w+') as f:
+                        call = subprocess.run(['samtools', 'faidx', chrom_fa_path, f"{chrname}:{int(start)}-{int(end)}"], stdout=f)
 
-                for record in SeqIO.parse(region_fa_path, 'fasta'):
-                    total_N = record.seq.count('N')
-                total_bp = end - start + 1
-                N_ratio = total_N / total_bp
-                rc = rc*(1-N_ratio)
+                    for record in SeqIO.parse(region_fa_path, 'fasta'):
+                        total_N = record.seq.count('N')
+                    total_bp = end - start + 1
+                    N_ratio = total_N / total_bp
+                    rc = int(rc*(1-N_ratio))
 
-                if rc > 0:
-                    call = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(rc), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
-                    with open(f"{cur_prefix}.read1.fastq.gz", 'a') as f1, open(f"{cur_prefix}.read1.fastq.gz", 'a') as f2:
-                        call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read1.fastq.gz'], stdout=f1)
-                        call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read2.fastq.gz'], stdout=f2)
-                    os.remove(region_fa_path[:-3] + '.bwa.read1.fastq.gz')
-                    os.remove(region_fa_path[:-3] + '.bwa.read2.fastq.gz')
-                    os.remove(region_fa_path[:-3] + '.mutations.txt')
-                    os.remove(region_fa_path[:-3] + '.mutations.vcf')
-                os.remove(region_fa_path)
+                    if rc > 0:
+                        call = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(rc), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
 
-                start = end
-            os.remove(chrom_fa_path)
+                        with open(f"{cur_prefix}.read1.fastq.gz", 'a') as f1, open(f"{cur_prefix}.read2.fastq.gz", 'a') as f2:
+                            call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read1.fastq.gz'], stdout=f1)
+                            call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read2.fastq.gz'], stdout=f2)
+                        os.remove(region_fa_path[:-3] + '.bwa.read1.fastq.gz')
+                        os.remove(region_fa_path[:-3] + '.bwa.read2.fastq.gz')
+                        os.remove(region_fa_path[:-3] + '.mutations.txt')
+                        os.remove(region_fa_path[:-3] + '.mutations.vcf')
+                    os.remove(region_fa_path)
+                    start = end
+                os.remove(chrom_fa_path)
+                os.remove(f"{chrom_fa_path}.fai")
     
     with open(prefix + '.read1.fastq.gz', 'w+') as f1, open(prefix + '.read2.fastq.gz', 'w+') as f2:
         call = subprocess.run(['cat', prefix + '_allele0.read1.fastq.gz', prefix + '_allele1.read1.fastq.gz'], stdout=f1)
@@ -128,9 +134,12 @@ def gen_reads(
     """
     params = fill_params(params, out_dir=out_dir, ref=ref, alt_ref=alt_ref, coverage=coverage, bin_size=bin_size, read_len=read_len, lorenz_y=lorenz_y, num_processors=num_processors)
 
-    read_dir = os.path.join(out_dir, 'reads')
+    if params.ref is None:
+        raise ValueError(f"Must pass a reference genome.")
+
+    read_dir = os.path.join(params.out_dir, 'reads')
     if not os.path.isdir(read_dir):
-        os.path.makedirs(read_dir)
+        os.makedirs(read_dir)
 
     check_dependencies(['samtools', 'dwgsim'])
 

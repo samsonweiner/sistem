@@ -10,9 +10,9 @@ def build_cell_ref(chromosome, ref, num_regions, region_len, out_path):
         for r in chromosome.seq:
             q = get_reg_id(r)
             if q == num_regions - 1:
-                ref_seq = list(ref[chromosome.name][q*region_len:].seq.upper())
+                ref_seq = list(ref[chromosome.name][int(q*region_len):].seq.upper())
             else:
-                ref_seq = list(ref[chromosome.name][q*region_len:(q+1)*region_len].seq.upper())
+                ref_seq = list(ref[chromosome.name][int(q*region_len):int((q+1)*region_len)].seq.upper())
             if isinstance(chromosome, SNVChromosome):
                 if r in chromosome.SNVs:
                     positions = chromosome.SNVs[r]

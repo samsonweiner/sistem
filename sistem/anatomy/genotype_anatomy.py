@@ -1,6 +1,8 @@
 import numpy as np
+from typing import Optional, Union, List
 
 from sistem.anatomy.base_anatomy import BaseAnatomy
+from sistem.selection import BaseLibrary
 
 class GenotypeAnatomy(BaseAnatomy):
     """The genotype migration model.
@@ -14,8 +16,8 @@ class GenotypeAnatomy(BaseAnatomy):
     where :math:`\\hat{s}_{b}` is the fitness of a non-mutated cell in site :math:`b`. In other words, the probability that cell :math:`c` successfully migrates to :math:`a` site :math:`b` increases as the cell acquires beneficial mutations. When used in conjunction with site-specific selection libraries, migration probabilities can also reflect compatibility with the the fitness landscape :math:`b`.
 
     """
-    def __init__(self, **kargs):
-        super().__init__(**kargs)
+    def __init__(self, libraries: Optional[Union[BaseLibrary, List[BaseLibrary]]], **kargs):
+        super().__init__(libraries=libraries, **kargs)
         self.initialized = True
 
     def get_oneway_transition_probabilities(self, clone):

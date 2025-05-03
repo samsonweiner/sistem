@@ -44,9 +44,9 @@ class GrowthSimulator:
         self._empty_sites = set()
         self._clone_ids = [0 for _ in range(self.anatomy.nsites)]
         self._igenome = init_diploid_genome(self.anatomy.libraries[0])
-        init_clone = Clone(name=self._assign_clone_name(0), genome=copy.deepcopy(self._igenome), library=self.anatomy.libraries[0], popsize=self.anatomy.N0, site=0, birth_gen=0)
-        self.clones[0].append(init_clone)
-        self.site_counts[0] += init_clone.popsize
+        self._init_clone = Clone(name=self._assign_clone_name(0), genome=copy.deepcopy(self._igenome), library=self.anatomy.libraries[0], popsize=self.anatomy.N0, site=0, birth_gen=0)
+        self.clones[0].append(self._init_clone)
+        self.site_counts[0] += self._init_clone.popsize
 
         # Data structures/variables used in sampling and phylogeny construction
         self._observed = defaultdict(int)
@@ -238,6 +238,9 @@ class GrowthSimulator:
         params = fill_params(params, t_max=t_max, min_detectable=min_detectable, focal_driver_rate=focal_driver_rate, arm_rate=arm_rate, chromosomal_rate=chromosomal_rate, WGD_rate=WGD_rate, focal_gain_rate=focal_gain_rate, chrom_dup_rate=chrom_dup_rate, length_mean=length_mean, mag_mean=mag_mean, SNV_driver_rate=SNV_driver_rate, log_path=log_path)
         setup_logger(file_path=params.log_path)
 
+        if not self._init_clone.library.is_driver_SNV_model:
+            params.SNV_driver_rate = 0
+
         if self.gen == 0:
             logging.info(f'STARTING AGENT GROWTH MODEL')
             logging.info('Site\tNumClones\tPopSize\tMeanFit\tNumBirths\tNumDeaths\tNumMigrations')
@@ -311,6 +314,9 @@ class GrowthSimulator:
             ncells_meta (int, optional): 
         """
         params = fill_params(params, ncells_prim=ncells_prim, ncells_meta=ncells_meta)
+        obs = [clone for clone in self._observed.keys()]
+        for clone in obs:
+            del self._observed[clone]
         
         for s in range(self.anatomy.nsites):
             if s == 0:
@@ -367,7 +373,7 @@ class GrowthSimulator:
         tree = create_singlecell_tree(self._clone_tree, self._observed, self.gen)
         resolve_multifurcation(tree)
         evolve_tree_with_passengers(tree, self._igenome, params.focal_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
-        if params.ncells_normal > 1:
+        if params.ncells_normal >= 1:
             add_dummy_diploids(tree, self.gen, params.ncells_normal)
         tree.save(os.path.join(params.out_dir, 'cell_tree_full.nwk'))
         collapse_tree(tree)
@@ -422,7 +428,7 @@ class GrowthSimulator:
         tree, obs = create_converted_tree(self._clone_tree, self._observed)
         sample_counts = merge_and_resolve_clone_tree(tree, obs, self.anatomy.nsites, self.gen, params.min_mut_fraction)
         evolve_tree_with_passengers(tree, self._igenome, params.focal_pass_rate, params.SNV_pass_rate, params.focal_gain_rate, params.length_mean, params.mag_mean)
-        if params.ncells_normal > 1:
+        if params.ncells_normal >= 1:
             add_dummy_diploids(tree, self.gen, 1)
             dip = tree.find('diploid')
             assert dip != None, "Cannot find diploid node..."

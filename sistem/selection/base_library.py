@@ -67,6 +67,7 @@ class BaseLibrary(ABC):
         
         self._ndiploid_regions = sum(list(self.regions.values()))
         max_region_id = max(self.regions.values()) 
+        self._max_region_id = max_region_id
         init_mbit(max_region_id.bit_length())
 
     def __getitem__(self, chrname):

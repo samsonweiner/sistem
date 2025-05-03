@@ -31,7 +31,7 @@ class Parameters:
         length_mean (int, float): The mean number of regions a focal CNA spans. Length is drawn from an exponential distribution. **Default = 1.5.**
         focal_gain_rate (float): The probability that a focal CNA is amplification (gain) versus a deletion (loss) **Default = 0.5.**
         mag_mean (int, float): The mean number of additional copies gained during a focal amplification CNA. Amplification magnitude is drawn from a geometric distribution. Default = 1.2.**
-        SNV_driver_rate (float): The probability of acquiring a driver SNV at each generation. **Default: 0.**
+        SNV_driver_rate (float): The probability of acquiring a driver SNV at each generation. **Default: 1e-4**
         SNV_pass_rate (float): The probability of acquiring a passenger SNV at each generation. **Default: 0.01.**
         arm_rate (float): The probability of acquiring a chromosome-arm CNA at each generation. **Default: 1e-5.**
         chromosomal_rate (float): The probability of acquiring a whole-chromosomal CNA at each generation. **Default: 1e-6.**
@@ -84,10 +84,10 @@ class Parameters:
     region_len: int = field(default=int(5e6))
     arm_ratios: Union[float, Dict] = field(default=0.5)
 
-    focal_driver_rate: float = 1e-4
-    SNV_driver_rate: float = 0
-    arm_rate: float = 1e-5
-    chromosomal_rate: float = 1e-6
+    focal_driver_rate: float = 5e-4
+    SNV_driver_rate: float = 5e-4
+    arm_rate: float = 1e-4
+    chromosomal_rate: float = 5e-5
     WGD_rate: float = 1e-8
     focal_gain_rate: float = 0.5
     chrom_dup_rate: float = 0.5
@@ -134,6 +134,7 @@ class Parameters:
         if self.nsites >= 15:
             warnings.warn("Extremely large number of sites. Consider choosing a smaller value.")
 
+        self.region_len = int(self.region_len)
         self._process_genome()
 
         if self.CN_coeff < 0 or self.CN_coeff > 1:
@@ -142,8 +143,8 @@ class Parameters:
         if self.SNV_coeff < 0 or self.SNV_coeff > 1:
             raise ValueError("SNV_coeff must be between 0-1.")
 
-        if self.alter_coeff < 0 or self.alter_coeff > 1:
-            raise ValueError("alter_coeff must be between 0-1.")
+        if self.alter_prop < 0 or self.alter_prop > 1:
+            raise ValueError("alter_prop must be between 0-1.")
 
         if self.growth_rate <= 0:
             raise ValueError("growth_rate must be greater than 0.")
