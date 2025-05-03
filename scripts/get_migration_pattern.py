@@ -55,7 +55,7 @@ def get_pattern(graph):
         pattern += 'p'
 
     edges = [tuple(e.split('-')) for e in graph.keys()]
-    if np.all(np.array([e[0] for e in edges]) == 'A'):
+    if np.all(np.array([e[0] for e in edges]) == 'P'):
         pattern += 'PS'
         return pattern
     
