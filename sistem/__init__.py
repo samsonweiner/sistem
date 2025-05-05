@@ -1,4 +1,4 @@
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 
 from sistem.utilities.IO import load_gs
 from sistem.ancestry import GrowthSimulator
