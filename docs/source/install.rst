@@ -51,7 +51,7 @@ SISTEM depends on the following Python packages, which can be installed with pac
 * `msprime <hhttps://tskit.dev/msprime/docs/latest/intro.html>`_
 * `Biopython <https://biopython.org/>`_
 * `Pyfaidx <https://github.com/mdshw5/pyfaidx>`_
-* `setuptools <https://pypi.org/project/setuptools/>`
+* `setuptools <https://pypi.org/project/setuptools/>`_
 
 Once installed, cd into the SISTEM repository and install the project:
 

@@ -192,11 +192,12 @@ def save_singlecell_readcounts(readcounts, out_path, chrom_lens, bin_size):
 def save_clonal_readcounts(mutated_basepairs, readcounts, site_ids, out_path):
     with open(os.path.join(out_path, 'readcounts.tsv'), 'w+') as f:
         headers = ['Chrom', 'Pos'] + site_ids
-        f.write(f"{'\t'.join(headers)}\n")
+        f.write('\t'.join(headers) + '\n')
 
         for i,(chrname,pos) in enumerate(mutated_basepairs):
             counts = [f"{readcounts[s][i][0]},{readcounts[s][i][1]}" for s in range(len(site_ids))]
-            f.write(f"{chrname}\t{pos}\t{'\t'.join(counts)}\n")
+            counts_combined = '\t'.join(counts)
+            f.write(f"{chrname}\t{pos}\t{counts_combined}\n")
 
 def site_CN_averages(tree, out_dir, bin_size):
     chrom_lens = tree.root.library.chrom_lens

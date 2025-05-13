@@ -14,7 +14,8 @@ def check_dependencies(commands: Optional[List[str]] = None):
         if shutil.which(cmd) is None:
             missing.append(cmd)
     if missing:
-        raise DependencyError(f"The following binaries must be installed and callable: {', '.join(missing)}.")
+        missing_combined = ', '.join(missing)
+        raise DependencyError(f"The following binaries must be installed and callable: {missing_combined}.")
     return True
 
 def compute_growth_rate(N0, Nt, tgen):

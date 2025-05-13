@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sistem"
-version = "1.0.1"
+version = "1.0.3"
 description = "Genotype-driven tumor growth and metastasis simulator"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 license = { file = "LICENSE" }
 authors = [
     { name="Samson Weiner", email="samson.weiner@uconn.edu" }

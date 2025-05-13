@@ -59,15 +59,15 @@ For each simulation, the migration graph will be saved in the respective output 
         gs.sample_cells(params=params)
         tree = gs.simulate_clonal_lineage(params=params)
 
-        # Now for each simulation we will use some helper functions to identify the pattern.
-        patterns = []
-        for i in range(num_sims):
-            graph_path = os.path.join(sims_dir, f'{i}/migration_graph.tsv')
-            g = read_graph(graph_path)
-            p = get_pattern(g)
-            patterns.append(p)
+    # Now for each simulation we will use some helper functions to identify the pattern.
+    patterns = []
+    for i in range(num_sims):
+        graph_path = os.path.join(sims_dir, f'{i}/migration_graph.tsv')
+        g = read_graph(graph_path)
+        p = get_pattern(g)
+        patterns.append(p)
 
-        # And we can get the relative counts of each pattern as follows:
-        c = Counter(patterns)
-        for p,count in c.items():
-            print(p, count)
+    # And we can get the relative counts of each pattern as follows:
+    c = Counter(patterns)
+    for p,count in c.items():
+        print(p, count)
