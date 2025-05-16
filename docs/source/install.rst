@@ -23,15 +23,15 @@ For best practices, install SISTEM into a new environment. You can do so as foll
 
 Make sure to activate the SISTEM environment before every use. 
 
-If installing with conda on a OSX machine, you may experience difficulties installing the *dwgsim* package. This package is used to generate synthetic sequencing reads, and is only necessary if that is the intended use of SISTEM. If this is the case, you can install a binary for dwgsim manually from `here <https://github.com/nh13/DWGSIM/blob/main/docs/02_Installation.md>`_. For all other applications, you need only install the required python package dependencies, which are listed under the following section.
-
-You can also install SISTEM using pip:
+**Note:** If installing using conda, you may experience difficulties installing a dependency package named *dwgsim*, particularly on OSX machines. You can install SISTEM without dwgsim for Python version >=3.9 using pip:
 
 .. code-block:: bash
 
     pip install sistem
 
-If installing using pip, and the intended use is to generate synthetic sequencing reads, you must also manually install :code:`samtools` and :code:`dwgsim` binaries (see below).
+
+The dwgsim package is used to generate synthetic sequencing reads, and is only necessary if that is the intended use of SISTEM. For all other applications, installing SISTEM with pip as-is will be sufficient. If users experience difficulties installing with conda but intend to generate sequencing reads, you can first install SISTEM using pip and then install a binary for dwgsim manually from `here <https://github.com/nh13/DWGSIM/blob/main/docs/02_Installation.md>`_. You will also need an executable for `samtools <http://www.htslib.org/download/>`_. Please see additional details on installing these two dependencies in the following section.
+
 
 Manual installation
 -------------------
