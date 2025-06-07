@@ -5,7 +5,7 @@ Generating single-cell CNA profiles and cell tree
 
 In this example, we will demonstrate how to use SISTEM to generate CNA profiles from observed cells with a known ground truth cell lineage tree. Here we will grow a single tumor until it reaches 5,000,000 cells with higher slightly higher chromosome-arm and whole-chromosomal CNA rates than the defaults. We will use the region selection model with random coefficients, and because we are simulating only one site, use the SimpleAnatomy class. Because we are only interested in the CNAs, we will disable SNVs by setting the passenger SNV rate to 0 (the region selection model automatically sets the driver SNV rate to 0).
 
-Once the tumor is simulated, we will create 10 replicate trees by independently sampling 1000 cells and adding random passenger mutations. This will lead to different cell lineage trees and CNA profiles from the same simulated tumor. Note that the simulate_singlecell_lineage method will automatically generate
+Once the tumor is simulated, we will create 10 replicate trees by independently sampling 1000 cells and adding random passenger mutations. This will lead to different cell lineage trees and CNA profiles from the same simulated tumor. Note that the simulate_singlecell_lineage method will automatically generate the ground truth tree, migration graph, mutation history, CNA profiles, and SNV profiles. This example may take around 25 minutes to execute.
 
 .. code-block:: python
 

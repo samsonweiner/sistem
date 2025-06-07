@@ -1,7 +1,7 @@
 Generating synthetic scDNA-seq reads
 ====================================
 
-This tutorial illustrates how to generate raw synthetic single-cell DNA-sequencing reads using SISTEM. Our experimental setup will mostly follow the :ref:`Generating single-cell CNA profiles and cell tree <scCNAtree>` tutorial, but we will only create one replicate and generating the reads requires an extra step. In addition to the scDNA-seq reads, it will also generate ground truth haplotype-specific CNA profiles and haplotype-specific read counts. As this is a single-cell experiment, we will be using a relatively low mean coverage of :math:`0.02`, and a read length of :math:`150`. To speed up the read simulation, we wil leverage multiple processors.
+This tutorial illustrates how to generate raw synthetic single-cell DNA-sequencing reads using SISTEM. Our experimental setup will mostly follow the :ref:`Generating single-cell CNA profiles and cell tree <scCNAtree>` tutorial, but we will only create one replicate and generating the reads requires an extra step. In addition to the scDNA-seq reads, it will also generate ground truth haplotype-specific CNA profiles and haplotype-specific read counts. As this is a single-cell experiment, we will be using a relatively low mean coverage of :math:`0.02`, and a read length of :math:`150`. To speed up the read simulation, we wil leverage multiple processors. The main simulation step may take around 25 minutes, while generating the sequencing reads will take much longer.
 
 .. code-block:: python
 

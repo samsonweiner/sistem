@@ -17,7 +17,7 @@ This page provides a demonstration of a simulation experiment using the main fea
 Initialize parameters
 ---------------------
 
-SISTEM numerous user-defined :ref:`parameters <parameters>` in order to generate a wide range of possible mutations, evolutionary histories, migration patterns, and more. When running a simulation, you can pass these parameter values directly on the fly at each step. However, it is advisable that you create an initial set of parameters beforehand. This has the benefit of checking parameter values and can be conveniently passed at each step instead of directly inputting individual parameters.
+SISTEM takes as input numerous user-defined :ref:`parameters <parameters>` in order to generate a wide range of possible mutations, evolutionary histories, migration patterns, and more. When running a simulation, you can pass these parameter values directly on the fly at each step. However, it is advisable that you create an initial set of parameters beforehand. This has the benefit of checking parameter values and can be conveniently passed at each step instead of directly inputting individual parameters.
 
 In this experiment, we are simulating the growth of a human cancer which metastasizes to 2 anatomical sites until detection when each site reaches a population of 1 million cells. For now, don't worry what each parameters mean - these will be explained in the following sections.
 

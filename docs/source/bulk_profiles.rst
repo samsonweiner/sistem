@@ -3,7 +3,7 @@ Generating bulk profiles and clone tree
 
 This example showcases how to simulate a clonal lineage and directly construct Bulk-seq mutation profiles. The commands used are very similar to the tutorial described in the :ref:`quickstart <quickstart>` section. However, this time we will be using the Chromosome-Arm selection model with random coefficients and the Genotype migration model. Running these commands will automatically generate the clonal lineage tree, migration graph, and bulk mutation profiles. In particular, it will generate clone-level CNA and SNV profiles and site-wise copy number averages.
 
-The simulations in this example will be for 3 sites and a baseline per-cell per-generation migration probability of :math:`1e-8`. Under the genotype model, the probability that cell :math:`c` in site :math:`a` migrates to site :math:`b` is at minimum :math:`1e-8` but increases as :math:`c` becomes more fit with respect to the selection library of :math:`b`. The other parameters will be the same as in the quickstart tutorial.
+The simulations in this example will be for 3 sites and a baseline per-cell per-generation migration probability of :math:`1e-8`. Under the genotype model, the probability that cell :math:`c` in site :math:`a` migrates to site :math:`b` is at minimum :math:`1e-8` but increases as :math:`c` becomes more fit with respect to the selection library of :math:`b`. The other parameters will be the same as in the quickstart tutorial. This example may take around 25 minutes to execute.
 
 .. code-block:: python
 
