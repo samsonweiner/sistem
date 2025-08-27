@@ -1,0 +1,90 @@
+# Model selection and associated options
+models:
+  # Options related to the selection library
+  Selection:
+    # Specify selection model. Options are RandomArmLibrary, FittedArmLibrary, RandomRegionLibrary, FittedRegionLibrary, RandomHybridLibrary, FittedHybridLibrary
+    model: RandomArmLibrary
+    # Specify the path to the file containing selection coefficients. Only necessary if using a "Fitted" selection model. See the documentation for file formats.
+    delta_file: None
+
+  # Options relating to the migration model.
+  Migration: 
+    # Specify migration model. Options are SimpleAnatomy, StaticAnatomy, GenotypeAnatomy
+    model: StaticAnatomy
+    # Set to True if you want different selection libraries for each metastatic site
+    create_metastatic_libraries: True
+    # Method used to create the selection libraries of metastatic sites. The above parameter must be True. Options are 'distance' or 'random'.
+    metastatic_library_method: distance
+
+  # Construct lineages at single-cell or bulk resolution. One must be set to True and the other False.
+  singlecell: True
+  bulk: False 
+
+  # Specify what, if any, output data should be generated (in addition to the ground truth lineage tree, migration graph, and mutation profiles). Set to either True or False.
+  readcounts: True
+  singlecell_reads: False
+
+
+# Parameters
+parameters:
+  N0: 10
+  growth_rate: 0.0051
+  max_growth_rate_multiplier: 5
+  capacities: 1e7
+  nsites: 3
+  epsilon: 1e-7
+  
+  # Only specify if generating synthetic single-cell DNA-seq reads
+  ref: None
+  alt_ref: None
+
+  # Keeping these as-is will default to hg38 chromosome lengths
+  chrom_names: None
+  chrom_lens: None
+  num_chroms: 22
+
+  region_len: 5e6
+  arm_ratios: 0.5
+
+  focal_driver_rate: 5e-4
+  SNV_driver_rate: 5e-4
+  arm_rate: 5e-4
+  chromosomal_rate: 1e-4
+  WGD_rate: 1e-8
+  focal_gain_rate: 0.5
+  chrom_dup_rate: 0.5
+  length_mean: 1.5
+  mag_mean: 1.2
+
+  focal_pass_rate: 0.01
+  SNV_pass_rate: 0.01
+
+  CN_coeff: 0.25
+  SNV_coeff: 0.1
+  OG_r: 0.05
+  TSG_r: 0.05
+  EG_r: 0.05
+  alter_prop: 0.3
+
+  max_region_CN: 10
+  max_region_SNV: 10
+  max_ploidy: 8
+  min_ploidy: 1.5
+  max_distinct_driv_ratio: 0.8
+
+  t_max: 6000
+  min_detectable: 5e5
+  ncells_prim: 200
+  ncells_meta: 100
+  ncells_normal: 1
+  min_mut_fraction: 0.05
+
+  bin_size: None
+  coverage: 0.1
+  read_len: 150
+  seq_error: 0.02
+  lorenz_y: 0.5
+
+  out_dir: out
+  log_path: None
+  num_processors: 1
