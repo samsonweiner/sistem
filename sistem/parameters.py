@@ -16,6 +16,7 @@ class Parameters:
         max_growth_rate_multiplier (int, float): This parameter is used to increase the exponential growth rates in metastatic sites. Metastatic growth rates are at minimum *growth_rate* but are increased based on the fitness of the cell which initiates seeding, up to a maximum of *growth_rate* * *max_growth_rate_multiplier*. **Default: 5.**
         capacities (int, list): The carrying capacity (max number of cells) of each anatomical site. If an integer is provided, all sites have that same carrying capacity. Also accepts a list of carrying capacities, one for each site. **Default: 1e7.**
         epsilon (float): A per-cell per-generation baseline migration probability to a site. **Default: 1e-8.**
+        lifespan_mean (int, float): The mean cell lifespan in number of generations drawn from an exponential distribution. Corresponds to 1/r, where r is the rate parameter of the exponential. A value of 1 will fix the lifespan to 1 generation for all cells. 
 
         ref (str, optional): Path to an input reference genome in fasta format. Can be used to initialize chromosome sizes, but is required for generating synthetic sequencing reads. **Default: None.**
         alt_ref (str, optional): Path to an optionally alternate reference genome in fasta format. Allele 0 utilizes ref, while Allele 1 utilizes alt_ref. Use if the goal is to generate allele-specific synthetic sequencing reads. **Default: None.**
@@ -75,6 +76,7 @@ class Parameters:
     capacities: Union[int, List[int]] = field(default_factory=lambda: [1e7])
     nsites: int = 1
     epsilon: float = 1e-8
+    lifespan_mean: Union[int, float] = 1
     
     ref: Optional[str] = None
     alt_ref: Optional[str] = None
@@ -136,6 +138,9 @@ class Parameters:
 
         self.region_len = int(self.region_len)
         self._process_genome()
+
+        if self.lifespan_mean < 0:
+            raise ValueError("Lifespan must be >= 1.")
 
         if self.CN_coeff < 0 or self.CN_coeff > 1:
             raise ValueError("CN_coeff must be between 0-1.")

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import expon
 from itertools import chain
 from collections import defaultdict
 import logging
@@ -48,6 +49,9 @@ class GrowthSimulator:
         self.clones[0].append(self._init_clone)
         self.site_counts[0] += self._init_clone.popsize
 
+        self._lifespan_gens = {i: defaultdict(list) for i in range(self.anatomy.nsites)}
+        self._lifespan_gens[0][1].append(self._init_clone)
+
         # Data structures/variables used in sampling and phylogeny construction
         self._observed = defaultdict(int)
         self._clone_tree = None
@@ -78,7 +82,7 @@ class GrowthSimulator:
                 mean_fits.append(np.average([clone.fitness for clone in clones], weights=[clone.popsize for clone in clones]))
         return mean_fits
     
-    def _create_new_clones(self, parent_clone, site, distr_events, focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean):
+    def _create_new_clones(self, parent_clone, site, distr_events, focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean, lifespan_mean):
         """
         Given array distr_events from draw_num_CNA_events, creates a new clone for each element with event count equal to the element
         """
@@ -91,22 +95,32 @@ class GrowthSimulator:
                 mut.select_SNV_events(clone, y)
             if clone.is_viable():
                 self.clones[site].append(clone)
+                if lifespan_mean > 1:
+                    lifespan = max(1, round(expon.rvs(scale=2)))
+                else:
+                    lifespan = 1
+                self._lifespan_gens[site][self.gen + lifespan].append(clone)
             else:
                 nviolations += 1
                 clone.die()
         return nviolations
     
     # PARALLELIZE?
-    def _cycle_birthdeath(self, focal_driver_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean, SNV_driver_rate):
+    def _cycle_birthdeath(self, focal_driver_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean, SNV_driver_rate, lifespan_mean):
         totbirths, totdeaths = [0 for i in range(self.anatomy.nsites)], [0 for i in range(self.anatomy.nsites)]
         mean_fits = self._get_mean_fitness()
         
         # Driver mutations
         for s,m in enumerate(mean_fits):
-            clones = self.clones[s][:]
+            #clones = self.clones[s][:]
+            clones = self._lifespan_gens[s][self.gen]
+            if len(clones) > 1:
+                print(self.gen, clones)
             if len(clones) > 0:
                 Ntot, Etot = self.site_counts[s], self.anatomy.exp_pop[s][self.gen]
-                for clone in clones:
+                #for clone in clones:
+                while len(clones) > 0:
+                    clone = clones.pop(0)
                     nbirths = clone.get_num_births(m, Ntot, Etot)
                     clone.birth_counts[self.gen] = nbirths
                     ndeaths = clone.popsize - nbirths
@@ -117,9 +131,19 @@ class GrowthSimulator:
                         nevents_SNV = mut.draw_num_SNV_events(nbirths, SNV_driver_rate)
                         if nevents_CN > 0 or nevents_SNV > 0:
                             distr_events = mut.distribute_events(nbirths, nevents_CN, nevents_SNV)
-                            nviolations = self._create_new_clones(clone, s, distr_events, clone_focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean)
+                            nviolations = self._create_new_clones(clone, s, distr_events, clone_focal_rate, arm_rate, chromosomal_rate, WGD_rate, focal_gain_rate, chrom_dup_rate, length_mean, mag_mean, lifespan_mean)
                             clone.popsize -= len(distr_events)
                             self.site_counts[s] -= nviolations
+
+                        if clone.popsize <= 0:
+                            clone.die()
+                            self.clones[s].remove(clone)
+                        else:
+                            if lifespan_mean > 1:
+                                lifespan = max(1, round(expon.rvs(scale=2)))
+                            else:
+                                lifespan = 1
+                            self._lifespan_gens[s][self.gen + lifespan].append(clone)
                     else:
                         clone.die()
                         self.clones[s].remove(clone)
@@ -205,6 +229,7 @@ class GrowthSimulator:
         self, 
         params: Optional[Parameters] = None,
         t_max: Optional[int] = None, 
+        lifespan_mean: Optional[Union[int, float]] = None,
         min_detectable: Optional[int] = None, 
         focal_driver_rate: Optional[float] = None, 
         arm_rate: Optional[float] = None, 
@@ -223,6 +248,7 @@ class GrowthSimulator:
         Args:
             params (Parameters, optional):
             t_max (int, optional):
+            lifespan_mean (int, float, optional):
             min_detectable (int, optional):
             focal_driver_rate (float, optional):
             arm_rate (float, optional):
@@ -235,7 +261,7 @@ class GrowthSimulator:
             SNV_driver_rate (float, optional):
             log_path (str, optional): 
         """
-        params = fill_params(params, t_max=t_max, min_detectable=min_detectable, focal_driver_rate=focal_driver_rate, arm_rate=arm_rate, chromosomal_rate=chromosomal_rate, WGD_rate=WGD_rate, focal_gain_rate=focal_gain_rate, chrom_dup_rate=chrom_dup_rate, length_mean=length_mean, mag_mean=mag_mean, SNV_driver_rate=SNV_driver_rate, log_path=log_path)
+        params = fill_params(params, t_max=t_max, lifespan_mean=lifespan_mean, min_detectable=min_detectable, focal_driver_rate=focal_driver_rate, arm_rate=arm_rate, chromosomal_rate=chromosomal_rate, WGD_rate=WGD_rate, focal_gain_rate=focal_gain_rate, chrom_dup_rate=chrom_dup_rate, length_mean=length_mean, mag_mean=mag_mean, SNV_driver_rate=SNV_driver_rate, log_path=log_path)
         setup_logger(file_path=params.log_path)
 
         if not self._init_clone.library.is_driver_SNV_model:
@@ -258,7 +284,7 @@ class GrowthSimulator:
                 Cell.gen = self.gen
                 TERMINATE = True
                 break
-            mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
+            mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate, params.lifespan_mean)
             totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
             self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
     
@@ -266,6 +292,7 @@ class GrowthSimulator:
         self, 
         params: Optional[Parameters] = None,
         t_max: Optional[int] = None, 
+        lifespan_mean: Optional[Union[int, float]] = None,
         min_detectable: Optional[int] = None, 
         focal_driver_rate: Optional[float] = None, 
         arm_rate: Optional[float] = None, 
@@ -282,7 +309,7 @@ class GrowthSimulator:
         """Identical to the :code:`simulate_agents` method, but runs for a single generation only
 
         """
-        params = fill_params(params, t_max=t_max, min_detectable=min_detectable, focal_driver_rate=focal_driver_rate, arm_rate=arm_rate, chromosomal_rate=chromosomal_rate, WGD_rate=WGD_rate, focal_gain_rate=focal_gain_rate, chrom_dup_rate=chrom_dup_rate, length_mean=length_mean, mag_mean=mag_mean, SNV_driver_rate=SNV_driver_rate, log_path=log_path)
+        params = fill_params(params, t_max=t_max, lifespan_mean=lifespan_mean, min_detectable=min_detectable, focal_driver_rate=focal_driver_rate, arm_rate=arm_rate, chromosomal_rate=chromosomal_rate, WGD_rate=WGD_rate, focal_gain_rate=focal_gain_rate, chrom_dup_rate=chrom_dup_rate, length_mean=length_mean, mag_mean=mag_mean, SNV_driver_rate=SNV_driver_rate, log_path=log_path)
         setup_logger(file_path=params.log_path)
 
         if self.gen == 0:
@@ -296,7 +323,7 @@ class GrowthSimulator:
         if not self._terminate(params.t_max, params.min_detectable):
             self.gen += 1
             Cell.gen = self.gen
-            mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate)
+            mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate, params.lifespan_mean)
             totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
             self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
 
