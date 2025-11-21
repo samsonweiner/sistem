@@ -9,4 +9,4 @@ SISTEM can be cited as follows:
 
 SISTEM: simulation of tumor evolution, metastasis, and DNA-seq data under genotype-driven selection<br>
 Samson Weiner and Mukul S. Bansal<br>
-Under Review
+Bioinformatics; 2025 (in press)
