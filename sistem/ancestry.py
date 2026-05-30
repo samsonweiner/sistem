@@ -114,8 +114,6 @@ class GrowthSimulator:
         for s,m in enumerate(mean_fits):
             #clones = self.clones[s][:]
             clones = self._lifespan_gens[s][self.gen]
-            if len(clones) > 1:
-                print(self.gen, clones)
             if len(clones) > 0:
                 Ntot, Etot = self.site_counts[s], self.anatomy.exp_pop[s][self.gen]
                 #for clone in clones:
