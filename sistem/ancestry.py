@@ -96,7 +96,7 @@ class GrowthSimulator:
             if clone.is_viable():
                 self.clones[site].append(clone)
                 if lifespan_mean > 1:
-                    lifespan = max(1, round(expon.rvs(scale=2)))
+                    lifespan = max(1, round(expon.rvs(scale=lifespan_mean)))
                 else:
                     lifespan = 1
                 self._lifespan_gens[site][self.gen + lifespan].append(clone)
@@ -138,7 +138,7 @@ class GrowthSimulator:
                             self.clones[s].remove(clone)
                         else:
                             if lifespan_mean > 1:
-                                lifespan = max(1, round(expon.rvs(scale=2)))
+                                lifespan = max(1, round(expon.rvs(scale=lifespan_mean)))
                             else:
                                 lifespan = 1
                             self._lifespan_gens[s][self.gen + lifespan].append(clone)
@@ -155,7 +155,7 @@ class GrowthSimulator:
 
         return mean_fits, totbirths, totdeaths
 
-    def _cycle_migrations(self, t_max, pattern):
+    def _cycle_migrations(self, t_max, lifespan_mean, pattern):
         # First figure out what migrations are happening, then afterwards do the shuffling
         totmigrations = [0 for i in range(self.anatomy.nsites)]
         if self.anatomy.nsites == 1:
@@ -177,9 +177,15 @@ class GrowthSimulator:
                         if occurs == 1:
                             migration_size = 1
                             if multi_source:
-                                migration_size = self.anatomy.N0
+                                migration_size = min(self.anatomy.N0, clone.popsize)
 
                             new_clone = clone.replicate(name=self._assign_clone_name(a), site=a, popsize=migration_size, library=self.anatomy.libraries[a])
+                            if lifespan_mean > 1:
+                                lifespan = max(1, round(expon.rvs(scale=lifespan_mean)))
+                            else:
+                                lifespan = 1
+                            self._lifespan_gens[a][self.gen + lifespan].append(new_clone)
+                            
                             moves[a].append(new_clone)
                             self.site_counts[a] += migration_size
                             self.site_counts[s] -= migration_size
@@ -187,6 +193,11 @@ class GrowthSimulator:
 
                     if clone.popsize <= 0:
                         self.clones[s].remove(clone)
+                        for i in range(self.gen - 1, max(self._lifespan_gens[s].keys())+1):
+                            if clone in self._lifespan_gens[s][i]:
+                                self._lifespan_gens[s][i].remove(clone)
+                                break
+
                     totmigrations[s] += sum(migrations)
         
         for s,new_clones in moves.items():
@@ -283,7 +294,7 @@ class GrowthSimulator:
                 TERMINATE = True
                 break
             mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate, params.lifespan_mean)
-            totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
+            totmigrations = self._cycle_migrations(params.t_max, params.lifespan_mean, pattern)
             self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
     
     def cycle_gen(
@@ -322,7 +333,7 @@ class GrowthSimulator:
             self.gen += 1
             Cell.gen = self.gen
             mean_fits, totbirths, totdeaths = self._cycle_birthdeath(params.focal_driver_rate, params.arm_rate, params.chromosomal_rate, params.WGD_rate, params.focal_gain_rate, params.chrom_dup_rate, params.length_mean, params.mag_mean, params.SNV_driver_rate, params.lifespan_mean)
-            totmigrations = self._cycle_migrations(params.t_max, pattern=pattern)
+            totmigrations = self._cycle_migrations(params.t_max, params.lifespan_mean, pattern)
             self._log_current_gen(mean_fits, totbirths, totdeaths, totmigrations)
 
     def sample_cells(
